@@ -1,0 +1,13 @@
+[remap]
+
+importer="font_data_dynamic"
+type="FontFile"
+uid="uid://cinzel_bold_custom"
+path="res://assets/fonts/Cinzel-Bold.ttf"
+
+[deps]
+source_file="res://assets/fonts/Cinzel-Bold.ttf"
+dest_files=[]
+
+[params]
+allow_system_fallback=true

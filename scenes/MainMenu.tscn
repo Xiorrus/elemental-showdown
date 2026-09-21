@@ -1,0 +1,543 @@
+[gd_scene load_steps=10 format=4 uid="uid://cmainmenu003"]
+
+[ext_resource type="Script" path="res://scripts/main_menu.gd" id="1_menu"]
+[ext_resource type="FontFile" path="res://assets/fonts/Cinzel-Bold.ttf" id="2_font"]
+[ext_resource type="Texture2D" path="res://assets/stadium_arena.png" id="3_bg_tex"]
+[ext_resource type="Script" path="res://scripts/ornate_divider.gd" id="4_divider"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_new_normal"]
+bg_color = Color(0.85, 0.68, 0.22, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(1, 0.88, 0.45, 0.9)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+shadow_color = Color(0, 0, 0, 0.4)
+shadow_size = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_new_hover"]
+bg_color = Color(0.96, 0.80, 0.32, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(1, 0.95, 0.65, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+shadow_color = Color(0.92, 0.76, 0.30, 0.3)
+shadow_size = 8
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_normal"]
+bg_color = Color(0.07, 0.09, 0.14, 0.92)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.20, 0.26, 0.38, 0.75)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_hover"]
+bg_color = Color(0.11, 0.15, 0.24, 0.95)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.50, 0.68, 0.92, 0.9)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_ghost_normal"]
+bg_color = Color(0.05, 0.07, 0.10, 0.5)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.18, 0.22, 0.30, 0.4)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_ghost_hover"]
+bg_color = Color(0.12, 0.10, 0.12, 0.8)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.65, 0.35, 0.35, 0.8)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_modal_panel"]
+bg_color = Color(0.06, 0.08, 0.12, 0.98)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.24, 0.32, 0.46, 0.8)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+shadow_color = Color(0, 0, 0, 0.75)
+shadow_size = 16
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_chip_val"]
+bg_color = Color(0.04, 0.05, 0.08, 0.9)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.16, 0.20, 0.28, 0.6)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+content_margin_left = 6
+content_margin_top = 2
+content_margin_right = 6
+content_margin_bottom = 2
+
+[node name="MainMenu" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_menu")
+
+[node name="Background" type="TextureRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("3_bg_tex")
+expand_mode = 1
+stretch_mode = 6
+
+[node name="AtmosphereVignette" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.035, 0.045, 0.07, 0.94)
+
+[node name="MainLayout" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 60.0
+offset_top = 60.0
+offset_right = -60.0
+offset_bottom = -30.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 28
+alignment = 1
+
+[node name="TitleBox" type="VBoxContainer" parent="MainLayout"]
+layout_mode = 2
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="Title" type="Label" parent="MainLayout/TitleBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.98, 0.88, 0.52, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.95)
+theme_override_constants/shadow_offset_x = 3
+theme_override_constants/shadow_offset_y = 3
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 46
+text = "Elemental Showdown"
+horizontal_alignment = 1
+
+[node name="Divider" type="Control" parent="MainLayout/TitleBox"]
+custom_minimum_size = Vector2(480, 8)
+layout_mode = 2
+size_flags_horizontal = 4
+script = ExtResource("4_divider")
+
+[node name="Subtitle" type="Label" parent="MainLayout/TitleBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.72, 0.78, 0.88, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.8)
+theme_override_constants/shadow_offset_x = 1
+theme_override_constants/shadow_offset_y = 1
+theme_override_font_sizes/font_size = 13
+text = "A Tactical Elemental Martial Arts Championship"
+horizontal_alignment = 1
+
+[node name="MenuDeckSpacer" type="Control" parent="MainLayout"]
+custom_minimum_size = Vector2(0, 15)
+layout_mode = 2
+
+[node name="NavDeck" type="VBoxContainer" parent="MainLayout"]
+custom_minimum_size = Vector2(340, 0)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_constants/separation = 10
+alignment = 1
+
+[node name="BtnNewCampaign" type="Button" parent="MainLayout/NavDeck"]
+custom_minimum_size = Vector2(340, 48)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.08, 0.07, 0.05, 1)
+theme_override_colors/font_hover_color = Color(0.08, 0.07, 0.05, 1)
+theme_override_colors/font_pressed_color = Color(0.08, 0.07, 0.05, 1)
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 15
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_new_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_btn_new_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_btn_new_hover")
+text = "New Campaign"
+
+[node name="BtnContinue" type="Button" parent="MainLayout/NavDeck"]
+custom_minimum_size = Vector2(340, 44)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.92, 0.94, 0.98, 1)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
+theme_override_colors/font_disabled_color = Color(0.40, 0.45, 0.52, 0.6)
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 13
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_btn_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_btn_hover")
+text = "Continue Campaign"
+
+[node name="BtnSettings" type="Button" parent="MainLayout/NavDeck"]
+custom_minimum_size = Vector2(340, 40)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.78, 0.84, 0.92, 1)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 13
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_btn_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_btn_hover")
+text = "Settings"
+
+[node name="BtnExit" type="Button" parent="MainLayout/NavDeck"]
+custom_minimum_size = Vector2(340, 36)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.55, 0.60, 0.70, 0.85)
+theme_override_colors/font_hover_color = Color(0.95, 0.60, 0.60, 1)
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 12
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_ghost_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_btn_ghost_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_btn_ghost_hover")
+text = "Exit to Desktop"
+
+[node name="FooterSpacer" type="Control" parent="MainLayout"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="FooterLabel" type="Label" parent="MainLayout"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.38, 0.44, 0.54, 0.8)
+theme_override_font_sizes/font_size = 11
+text = "Elemental Showdown • Competitive Tournament Circuit • 2026"
+horizontal_alignment = 1
+
+[node name="SettingsModal" type="Control" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="DimBackdrop" type="ColorRect" parent="SettingsModal"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.02, 0.03, 0.05, 0.82)
+
+[node name="DialogPanel" type="PanelContainer" parent="SettingsModal"]
+custom_minimum_size = Vector2(520, 320)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -260.0
+offset_top = -160.0
+offset_right = 260.0
+offset_bottom = 160.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_modal_panel")
+
+[node name="Margin" type="MarginContainer" parent="SettingsModal/DialogPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 18
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 18
+
+[node name="VBox" type="VBoxContainer" parent="SettingsModal/DialogPanel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="HeaderBox" type="VBoxContainer" parent="SettingsModal/DialogPanel/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Title" type="Label" parent="SettingsModal/DialogPanel/Margin/VBox/HeaderBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.92, 0.78, 0.35, 1)
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 18
+text = "Settings"
+horizontal_alignment = 1
+
+[node name="Divider" type="Control" parent="SettingsModal/DialogPanel/Margin/VBox/HeaderBox"]
+custom_minimum_size = Vector2(240, 4)
+layout_mode = 2
+size_flags_horizontal = 4
+script = ExtResource("4_divider")
+
+[node name="TabSelect" type="HBoxContainer" parent="SettingsModal/DialogPanel/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 10
+alignment = 1
+
+[node name="BtnTabAudio" type="Button" parent="SettingsModal/DialogPanel/Margin/VBox/TabSelect"]
+custom_minimum_size = Vector2(140, 30)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.85, 0.45, 1)
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 11
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_normal")
+text = "Audio"
+
+[node name="BtnTabDisplay" type="Button" parent="SettingsModal/DialogPanel/Margin/VBox/TabSelect"]
+custom_minimum_size = Vector2(170, 30)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.65, 0.72, 0.85, 1)
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 11
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_normal")
+text = "Display & Controls"
+
+[node name="AudioSection" type="VBoxContainer" parent="SettingsModal/DialogPanel/Margin/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 10
+
+[node name="MasterRow" type="HBoxContainer" parent="SettingsModal/DialogPanel/Margin/VBox/AudioSection"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Label" type="Label" parent="SettingsModal/DialogPanel/Margin/VBox/AudioSection/MasterRow"]
+custom_minimum_size = Vector2(130, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.85, 0.90, 0.96, 1)
+theme_override_font_sizes/font_size = 11
+text = "Master Volume"
+
+[node name="SliderMaster" type="HSlider" parent="SettingsModal/DialogPanel/Margin/VBox/AudioSection/MasterRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+max_value = 100.0
+value = 80.0
+
+[node name="ValMaster" type="Label" parent="SettingsModal/DialogPanel/Margin/VBox/AudioSection/MasterRow"]
+custom_minimum_size = Vector2(48, 22)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.92, 0.78, 0.35, 1)
+theme_override_font_sizes/font_size = 11
+theme_override_styles/normal = SubResource("StyleBoxFlat_chip_val")
+text = "80%"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="MusicRow" type="HBoxContainer" parent="SettingsModal/DialogPanel/Margin/VBox/AudioSection"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Label" type="Label" parent="SettingsModal/DialogPanel/Margin/VBox/AudioSection/MusicRow"]
+custom_minimum_size = Vector2(130, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.85, 0.90, 0.96, 1)
+theme_override_font_sizes/font_size = 11
+text = "Music Volume"
+
+[node name="SliderMusic" type="HSlider" parent="SettingsModal/DialogPanel/Margin/VBox/AudioSection/MusicRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+max_value = 100.0
+value = 70.0
+
+[node name="ValMusic" type="Label" parent="SettingsModal/DialogPanel/Margin/VBox/AudioSection/MusicRow"]
+custom_minimum_size = Vector2(48, 22)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.92, 0.78, 0.35, 1)
+theme_override_font_sizes/font_size = 11
+theme_override_styles/normal = SubResource("StyleBoxFlat_chip_val")
+text = "70%"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="SfxRow" type="HBoxContainer" parent="SettingsModal/DialogPanel/Margin/VBox/AudioSection"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Label" type="Label" parent="SettingsModal/DialogPanel/Margin/VBox/AudioSection/SfxRow"]
+custom_minimum_size = Vector2(130, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.85, 0.90, 0.96, 1)
+theme_override_font_sizes/font_size = 11
+text = "SFX Volume"
+
+[node name="SliderSfx" type="HSlider" parent="SettingsModal/DialogPanel/Margin/VBox/AudioSection/SfxRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+max_value = 100.0
+value = 90.0
+
+[node name="ValSfx" type="Label" parent="SettingsModal/DialogPanel/Margin/VBox/AudioSection/SfxRow"]
+custom_minimum_size = Vector2(48, 22)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.92, 0.78, 0.35, 1)
+theme_override_font_sizes/font_size = 11
+theme_override_styles/normal = SubResource("StyleBoxFlat_chip_val")
+text = "90%"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="DisplaySection" type="VBoxContainer" parent="SettingsModal/DialogPanel/Margin/VBox"]
+visible = false
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 14
+
+[node name="DisplayModeRow" type="HBoxContainer" parent="SettingsModal/DialogPanel/Margin/VBox/DisplaySection"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="Label" type="Label" parent="SettingsModal/DialogPanel/Margin/VBox/DisplaySection/DisplayModeRow"]
+custom_minimum_size = Vector2(140, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.95, 1, 1)
+theme_override_font_sizes/font_size = 12
+text = "Window Mode"
+
+[node name="BtnWindowMode" type="Button" parent="SettingsModal/DialogPanel/Margin/VBox/DisplaySection/DisplayModeRow"]
+custom_minimum_size = Vector2(160, 32)
+layout_mode = 2
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 11
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_normal")
+text = "Windowed"
+
+[node name="ControlsHeader" type="Label" parent="SettingsModal/DialogPanel/Margin/VBox/DisplaySection"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.85, 0.70, 0.35, 1)
+theme_override_font_sizes/font_size = 12
+text = "Tactical Combat Keybindings"
+
+[node name="ControlsGrid" type="GridContainer" parent="SettingsModal/DialogPanel/Margin/VBox/DisplaySection"]
+layout_mode = 2
+theme_override_constants/h_separation = 16
+theme_override_constants/v_separation = 6
+columns = 2
+
+[node name="K1" type="Label" parent="SettingsModal/DialogPanel/Margin/VBox/DisplaySection/ControlsGrid"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.85, 0.45, 1)
+theme_override_font_sizes/font_size = 11
+text = "Keys 1, 2, 3, 4"
+
+[node name="D1" type="Label" parent="SettingsModal/DialogPanel/Margin/VBox/DisplaySection/ControlsGrid"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8, 0.85, 0.9, 1)
+theme_override_font_sizes/font_size = 11
+text = "Select Martial Technique Slots"
+
+[node name="K2" type="Label" parent="SettingsModal/DialogPanel/Margin/VBox/DisplaySection/ControlsGrid"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.85, 0.45, 1)
+theme_override_font_sizes/font_size = 11
+text = "Key E / Right Click"
+
+[node name="D2" type="Label" parent="SettingsModal/DialogPanel/Margin/VBox/DisplaySection/ControlsGrid"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8, 0.85, 0.9, 1)
+theme_override_font_sizes/font_size = 11
+text = "End Movement Phase"
+
+[node name="K3" type="Label" parent="SettingsModal/DialogPanel/Margin/VBox/DisplaySection/ControlsGrid"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.85, 0.45, 1)
+theme_override_font_sizes/font_size = 11
+text = "Key Q"
+
+[node name="D3" type="Label" parent="SettingsModal/DialogPanel/Margin/VBox/DisplaySection/ControlsGrid"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8, 0.85, 0.9, 1)
+theme_override_font_sizes/font_size = 11
+text = "End Unit Turn"
+
+[node name="K4" type="Label" parent="SettingsModal/DialogPanel/Margin/VBox/DisplaySection/ControlsGrid"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.85, 0.45, 1)
+theme_override_font_sizes/font_size = 11
+text = "Left Click (Tile/Ally)"
+
+[node name="D4" type="Label" parent="SettingsModal/DialogPanel/Margin/VBox/DisplaySection/ControlsGrid"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8, 0.85, 0.9, 1)
+theme_override_font_sizes/font_size = 11
+text = "Move / Select Active Squadmate"
+
+[node name="ButtonRow" type="HBoxContainer" parent="SettingsModal/DialogPanel/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 16
+alignment = 2
+
+[node name="BtnResetDefaults" type="Button" parent="SettingsModal/DialogPanel/Margin/VBox/ButtonRow"]
+custom_minimum_size = Vector2(160, 38)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.75, 0.8, 0.9, 1)
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 11
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_normal")
+text = "Reset Defaults"
+
+[node name="BtnCloseSettings" type="Button" parent="SettingsModal/DialogPanel/Margin/VBox/ButtonRow"]
+custom_minimum_size = Vector2(180, 38)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.92, 0.65, 1)
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 12
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_new_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_btn_new_hover")
+text = "Apply & Close"

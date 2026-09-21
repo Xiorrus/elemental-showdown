@@ -1,0 +1,24 @@
+# Godot 4+ specific ignores
+.godot/
+/android/
+*.translation
+
+# Mono / C# specific ignores
+.mono/
+data_*/
+mono_crash.*.json
+
+# Internal agent and temporary scratch files
+.agents/
+*.tmp
+*.log
+used_rect.txt
+test_write.tmp
+
+# Root-level debug capture images
+/capture_*.png
+/capture_*.png.import
+
+# OS generated files
+.DS_Store
+Thumbs.db

@@ -1,0 +1,1887 @@
+[gd_scene load_steps=25 format=4 uid="uid://chub004"]
+
+[ext_resource type="Script" path="res://scripts/campaign_hub.gd" id="1_hub"]
+[ext_resource type="Script" path="res://scripts/metaphor_bg.gd" id="2_bg"]
+[ext_resource type="Script" path="res://scripts/ornate_bar.gd" id="3_bar"]
+[ext_resource type="Script" path="res://scripts/tactical_bracket_panel.gd" id="4_bracket"]
+[ext_resource type="Script" path="res://scripts/ornate_divider.gd" id="5_divider"]
+[ext_resource type="FontFile" path="res://assets/fonts/Cinzel-Bold.ttf" id="6_font"]
+[ext_resource type="Script" path="res://scripts/tactical_map_preview.gd" id="7_map"]
+[ext_resource type="Texture2D" path="res://assets/earth_walk.png" id="8_earth"]
+[ext_resource type="Texture2D" path="res://assets/water_walk.png" id="9_water"]
+[ext_resource type="Texture2D" path="res://assets/air_walk.png" id="10_air"]
+[ext_resource type="Texture2D" path="res://assets/fire_walk.png" id="11_fire"]
+[ext_resource type="Texture2D" path="res://assets/ui/icon_swords.png" id="12_swords"]
+[ext_resource type="Texture2D" path="res://assets/ui/icon_shield.png" id="13_shield"]
+[ext_resource type="Texture2D" path="res://assets/ui/icon_helm.png" id="14_helm"]
+[ext_resource type="Texture2D" path="res://assets/ui/icon_trophy.png" id="15_trophy"]
+[ext_resource type="Texture2D" path="res://assets/ui/icon_flame.png" id="16_flame"]
+[ext_resource type="Texture2D" path="res://assets/ui/icon_shards.png" id="17_shards"]
+[ext_resource type="Texture2D" path="res://assets/ui/icon_flask.png" id="18_flask"]
+[ext_resource type="Texture2D" path="res://assets/ui/icon_hourglass.png" id="19_hourglass"]
+[ext_resource type="Texture2D" path="res://assets/ui/icon_axes.png" id="20_axes"]
+[ext_resource type="Script" path="res://scripts/tactical_bracket_frame.gd" id="21_frame"]
+[ext_resource type="Texture2D" path="res://assets/stadium_arena.png" id="24_stadium"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_pill_district"]
+bg_color = Color(0.06, 0.08, 0.12, 0.92)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.20, 0.35, 0.28, 0.6)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+content_margin_left = 10
+content_margin_top = 3
+content_margin_right = 10
+content_margin_bottom = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_pill_gold"]
+bg_color = Color(0.06, 0.08, 0.12, 0.92)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.40, 0.34, 0.18, 0.6)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+content_margin_left = 10
+content_margin_top = 3
+content_margin_right = 10
+content_margin_bottom = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_pill_shards"]
+bg_color = Color(0.06, 0.08, 0.12, 0.92)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.18, 0.32, 0.42, 0.6)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+content_margin_left = 10
+content_margin_top = 3
+content_margin_right = 10
+content_margin_bottom = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_pill_stamina"]
+bg_color = Color(0.06, 0.08, 0.12, 0.92)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.42, 0.20, 0.22, 0.6)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+content_margin_left = 10
+content_margin_top = 3
+content_margin_right = 10
+content_margin_bottom = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_card_rpg"]
+bg_color = Color(0.07, 0.09, 0.14, 0.95)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.18, 0.24, 0.35, 0.6)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_card_rpg_captain"]
+bg_color = Color(0.08, 0.10, 0.16, 0.98)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.85, 0.68, 0.22, 0.5)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_avatar_slot"]
+bg_color = Color(0.04, 0.05, 0.08, 0.90)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.22, 0.28, 0.40, 0.5)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_technique_banner"]
+bg_color = Color(0.05, 0.07, 0.10, 0.90)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.18, 0.24, 0.35, 0.5)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_timeline_slot"]
+bg_color = Color(0.06, 0.08, 0.12, 0.90)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.16, 0.22, 0.32, 0.5)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_timeline_boss"]
+bg_color = Color(0.12, 0.05, 0.08, 0.90)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.50, 0.20, 0.25, 0.6)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_dock_bar"]
+bg_color = Color(0.04, 0.05, 0.08, 0.95)
+border_width_top = 1
+border_color = Color(0.16, 0.22, 0.32, 0.6)
+
+[node name="CampaignHub" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_hub")
+
+[node name="Background" type="TextureRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("24_stadium")
+expand_mode = 1
+stretch_mode = 6
+
+[node name="AtmosphereVignette" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.04, 0.05, 0.08, 0.88)
+
+[node name="HeaderBar" type="HBoxContainer" parent="."]
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 16.0
+offset_top = 8.0
+offset_right = -16.0
+offset_bottom = 48.0
+grow_horizontal = 2
+theme_override_constants/separation = 12
+alignment = 1
+
+[node name="LblEngine" type="Label" parent="HeaderBar"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.4, 0.45, 0.55, 1)
+theme_override_font_sizes/font_size = 9
+text = ""
+
+[node name="PillDistrict" type="PanelContainer" parent="HeaderBar"]
+custom_minimum_size = Vector2(180, 26)
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_styles/panel = SubResource("StyleBoxFlat_pill_district")
+
+[node name="HBox" type="HBoxContainer" parent="HeaderBar/PillDistrict"]
+layout_mode = 2
+theme_override_constants/separation = 5
+alignment = 1
+
+[node name="Dot" type="Label" parent="HeaderBar/PillDistrict/HBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.18, 0.88, 0.52, 1)
+text = ""
+
+[node name="LblDistrict" type="Label" parent="HeaderBar/PillDistrict/HBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.18, 0.88, 0.52, 1)
+theme_override_font_sizes/font_size = 10
+text = "Bronze League • Street Circuit"
+
+[node name="LblIdent" type="Label" parent="HeaderBar"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.98, 0.88, 0.52, 1)
+theme_override_font_sizes/font_size = 12
+text = "Ignis • Lv. 1 Fire Striker"
+
+[node name="XPBox" type="HBoxContainer" parent="HeaderBar"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="LblXP" type="Label" parent="HeaderBar/XPBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.94, 0.72, 0.19, 1)
+theme_override_font_sizes/font_size = 10
+text = "XP ◆"
+
+[node name="XpBar" type="Control" parent="HeaderBar/XPBox"]
+custom_minimum_size = Vector2(85, 14)
+layout_mode = 2
+size_flags_vertical = 4
+script = ExtResource("3_bar")
+bar_style = "sleek"
+bar_theme = "gold"
+label_text = ""
+
+[node name="LblXPVal" type="Label" parent="HeaderBar/XPBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.92, 0.92, 0.92, 1)
+theme_override_font_sizes/font_size = 11
+text = "0/100"
+
+[node name="Spacer" type="Control" parent="HeaderBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="PillGold" type="PanelContainer" parent="HeaderBar"]
+custom_minimum_size = Vector2(100, 26)
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_styles/panel = SubResource("StyleBoxFlat_pill_gold")
+
+[node name="HBox" type="HBoxContainer" parent="HeaderBar/PillGold"]
+layout_mode = 2
+theme_override_constants/separation = 6
+alignment = 1
+
+[node name="Icon" type="TextureRect" parent="HeaderBar/PillGold/HBox"]
+custom_minimum_size = Vector2(14, 14)
+layout_mode = 2
+size_flags_vertical = 4
+texture = ExtResource("15_trophy")
+expand_mode = 1
+stretch_mode = 5
+modulate = Color(0.94, 0.75, 0.25, 1)
+
+[node name="LblGold" type="Label" parent="HeaderBar/PillGold/HBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.85, 0.40, 1)
+theme_override_font_sizes/font_size = 11
+text = "2,400 G"
+
+[node name="PillShards" type="PanelContainer" parent="HeaderBar"]
+custom_minimum_size = Vector2(90, 26)
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_styles/panel = SubResource("StyleBoxFlat_pill_shards")
+
+[node name="HBox" type="HBoxContainer" parent="HeaderBar/PillShards"]
+layout_mode = 2
+theme_override_constants/separation = 6
+alignment = 1
+
+[node name="Icon" type="TextureRect" parent="HeaderBar/PillShards/HBox"]
+custom_minimum_size = Vector2(14, 14)
+layout_mode = 2
+size_flags_vertical = 4
+texture = ExtResource("17_shards")
+expand_mode = 1
+stretch_mode = 5
+modulate = Color(0.35, 0.75, 0.95, 1)
+
+[node name="LblShards" type="Label" parent="HeaderBar/PillShards/HBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.40, 0.80, 0.95, 1)
+theme_override_font_sizes/font_size = 11
+text = "120"
+
+[node name="PillStamina" type="PanelContainer" parent="HeaderBar"]
+custom_minimum_size = Vector2(125, 26)
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_styles/panel = SubResource("StyleBoxFlat_pill_stamina")
+
+[node name="HBox" type="HBoxContainer" parent="HeaderBar/PillStamina"]
+layout_mode = 2
+theme_override_constants/separation = 6
+alignment = 1
+
+[node name="Icon" type="TextureRect" parent="HeaderBar/PillStamina/HBox"]
+custom_minimum_size = Vector2(14, 14)
+layout_mode = 2
+size_flags_vertical = 4
+texture = ExtResource("19_hourglass")
+expand_mode = 1
+stretch_mode = 5
+modulate = Color(0.91, 0.28, 0.33, 1)
+
+[node name="LblStamina" type="Label" parent="HeaderBar/PillStamina/HBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.91, 0.28, 0.33, 1)
+theme_override_font_sizes/font_size = 11
+text = "Stamina 40/100"
+
+[node name="BtnSaveDisk" type="Button" parent="HeaderBar"]
+custom_minimum_size = Vector2(60, 28)
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_font_sizes/font_size = 10
+text = "Save"
+
+[node name="BtnProfileIcon" type="Button" parent="HeaderBar"]
+custom_minimum_size = Vector2(60, 28)
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_font_sizes/font_size = 10
+text = "Menu"
+
+[node name="MainTabs" type="TabContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = 54.0
+offset_right = -16.0
+offset_bottom = -54.0
+grow_horizontal = 2
+grow_vertical = 2
+tabs_visible = false
+
+[node name="TabSchedule" type="VBoxContainer" parent="MainTabs"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="LeagueCampaignCard" type="VBoxContainer" parent="MainTabs/TabSchedule"]
+layout_mode = 2
+theme_override_constants/separation = 3
+
+[node name="HBoxTop" type="HBoxContainer" parent="MainTabs/TabSchedule/LeagueCampaignCard"]
+layout_mode = 2
+
+[node name="Eyebrow" type="Label" parent="MainTabs/TabSchedule/LeagueCampaignCard/HBoxTop"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.91, 0.66, 0.19, 1)
+theme_override_font_sizes/font_size = 10
+text = "League Tournament Schedule"
+
+[node name="Spacer" type="Control" parent="MainTabs/TabSchedule/LeagueCampaignCard/HBoxTop"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="PillNextClash" type="PanelContainer" parent="MainTabs/TabSchedule/LeagueCampaignCard/HBoxTop"]
+visible = false
+custom_minimum_size = Vector2(170, 20)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_pill_gold")
+
+[node name="LblNextClash" type="Label" parent="MainTabs/TabSchedule/LeagueCampaignCard/HBoxTop/PillNextClash"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.94, 0.75, 0.25, 1)
+theme_override_font_sizes/font_size = 9
+text = "Next Tournament Match"
+horizontal_alignment = 1
+
+[node name="Title" type="Label" parent="MainTabs/TabSchedule/LeagueCampaignCard"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_fonts/font = ExtResource("6_font")
+theme_override_font_sizes/font_size = 18
+text = "Neon Circuit — Round of 16"
+
+[node name="PromotionHBox" type="HBoxContainer" parent="MainTabs/TabSchedule/LeagueCampaignCard"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="PillGauge" type="PanelContainer" parent="MainTabs/TabSchedule/LeagueCampaignCard/PromotionHBox"]
+custom_minimum_size = Vector2(165, 18)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_pill_gold")
+
+[node name="Lbl" type="Label" parent="MainTabs/TabSchedule/LeagueCampaignCard/PromotionHBox/PillGauge"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.78, 0.26, 1)
+theme_override_font_sizes/font_size = 9
+text = "◆ League Promotion Gauge"
+horizontal_alignment = 1
+
+[node name="PromotionGauge" type="Control" parent="MainTabs/TabSchedule/LeagueCampaignCard/PromotionHBox"]
+custom_minimum_size = Vector2(320, 14)
+layout_mode = 2
+size_flags_vertical = 4
+script = ExtResource("3_bar")
+bar_style = "sleek"
+bar_theme = "gold"
+label_text = ""
+
+[node name="LblPromotionVal" type="Label" parent="MainTabs/TabSchedule/LeagueCampaignCard/PromotionHBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.78, 0.26, 1)
+theme_override_font_sizes/font_size = 10
+text = "65/100 ◆"
+
+[node name="Spacer" type="Control" parent="MainTabs/TabSchedule/LeagueCampaignCard/PromotionHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="HBoxObj" type="HBoxContainer" parent="MainTabs/TabSchedule/LeagueCampaignCard"]
+layout_mode = 2
+
+[node name="Objective" type="Label" parent="MainTabs/TabSchedule/LeagueCampaignCard/HBoxObj"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.22, 0.78, 0.91, 1)
+theme_override_font_sizes/font_size = 10
+text = "Objective: Defeat regional rivals to advance to tournament finals"
+
+[node name="Spacer" type="Control" parent="MainTabs/TabSchedule/LeagueCampaignCard/HBoxObj"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="BadgeCP" type="Label" parent="MainTabs/TabSchedule/LeagueCampaignCard/HBoxObj"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.22, 0.78, 0.91, 1)
+theme_override_font_sizes/font_size = 10
+text = "Crew CP: 8990"
+
+[node name="BadgeStreak" type="Label" parent="MainTabs/TabSchedule/LeagueCampaignCard/HBoxObj"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.91, 0.38, 0.22, 1)
+theme_override_font_sizes/font_size = 10
+text = "3-Win Streak"
+
+[node name="Div1" type="Control" parent="MainTabs/TabSchedule"]
+custom_minimum_size = Vector2(0, 6)
+layout_mode = 2
+script = ExtResource("5_divider")
+
+[node name="TrioHeader" type="HBoxContainer" parent="MainTabs/TabSchedule"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="MainTabs/TabSchedule/TrioHeader"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_fonts/font = ExtResource("6_font")
+theme_override_font_sizes/font_size = 12
+text = "Active Battle Trio"
+
+[node name="Spacer" type="Control" parent="MainTabs/TabSchedule/TrioHeader"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="BtnSwapLineup" type="Button" parent="MainTabs/TabSchedule/TrioHeader"]
+custom_minimum_size = Vector2(100, 24)
+layout_mode = 2
+theme_override_fonts/font = ExtResource("6_font")
+theme_override_font_sizes/font_size = 9
+text = "Swap Lineup"
+
+[node name="BtnGearRunes" type="Button" parent="MainTabs/TabSchedule/TrioHeader"]
+custom_minimum_size = Vector2(100, 24)
+layout_mode = 2
+theme_override_fonts/font = ExtResource("6_font")
+theme_override_font_sizes/font_size = 9
+text = "Gear & Runes"
+
+[node name="BtnSkillCodex" type="Button" parent="MainTabs/TabSchedule/TrioHeader"]
+custom_minimum_size = Vector2(100, 24)
+layout_mode = 2
+theme_override_fonts/font = ExtResource("6_font")
+theme_override_font_sizes/font_size = 9
+text = "Skill Codex"
+
+[node name="TrioCardsHBox" type="HBoxContainer" parent="MainTabs/TabSchedule"]
+custom_minimum_size = Vector2(0, 175)
+layout_mode = 2
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="Card1" type="PanelContainer" parent="MainTabs/TabSchedule/TrioCardsHBox"]
+custom_minimum_size = Vector2(210, 175)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_card_rpg_captain")
+
+[node name="Margin" type="MarginContainer" parent="MainTabs/TabSchedule/TrioCardsHBox/Card1"]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="VB" type="VBoxContainer" parent="MainTabs/TabSchedule/TrioCardsHBox/Card1/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 5
+
+[node name="TopRow" type="HBoxContainer" parent="MainTabs/TabSchedule/TrioCardsHBox/Card1/Margin/VB"]
+layout_mode = 2
+
+[node name="PosTag" type="Label" parent="MainTabs/TabSchedule/TrioCardsHBox/Card1/Margin/VB/TopRow"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.92, 0.76, 0.28, 1)
+theme_override_font_sizes/font_size = 8
+text = "◆ Pos. 1: Vanguard (Captain)"
+
+[node name="Spacer" type="Control" parent="MainTabs/TabSchedule/TrioCardsHBox/Card1/Margin/VB/TopRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ElemIcon" type="Label" parent="MainTabs/TabSchedule/TrioCardsHBox/Card1/Margin/VB/TopRow"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.91, 0.66, 0.19, 1)
+theme_override_font_sizes/font_size = 8
+text = ""
+
+[node name="MidRow" type="HBoxContainer" parent="MainTabs/TabSchedule/TrioCardsHBox/Card1/Margin/VB"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="AvatarFrame" type="PanelContainer" parent="MainTabs/TabSchedule/TrioCardsHBox/Card1/Margin/VB/MidRow"]
+clip_contents = true
+custom_minimum_size = Vector2(38, 38)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_avatar_slot")
+
+[node name="Sprite" type="Sprite2D" parent="MainTabs/TabSchedule/TrioCardsHBox/Card1/Margin/VB/MidRow/AvatarFrame"]
+position = Vector2(19, 27)
+scale = Vector2(0.42, 0.42)
+texture = ExtResource("8_earth")
+hframes = 4
+vframes = 4
+
+[node name="VBInfo" type="VBoxContainer" parent="MainTabs/TabSchedule/TrioCardsHBox/Card1/Margin/VB/MidRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 1
+alignment = 1
+
+[node name="Name" type="Label" parent="MainTabs/TabSchedule/TrioCardsHBox/Card1/Margin/VB/MidRow/VBInfo"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 11
+text = "Valen"
+clip_text = true
+
+[node name="Role" type="Label" parent="MainTabs/TabSchedule/TrioCardsHBox/Card1/Margin/VB/MidRow/VBInfo"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.82, 0.88, 0.96, 1)
+theme_override_font_sizes/font_size = 8
+text = "Lv. 31 Earth Striker"
+clip_text = true
+
+[node name="ArchetypePill" type="PanelContainer" parent="MainTabs/TabSchedule/TrioCardsHBox/Card1/Margin/VB/MidRow"]
+custom_minimum_size = Vector2(48, 16)
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_styles/panel = SubResource("StyleBoxFlat_pill_gold")
+
+[node name="L" type="Label" parent="MainTabs/TabSchedule/TrioCardsHBox/Card1/Margin/VB/MidRow/ArchetypePill"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.92, 0.78, 0.35, 1)
+theme_override_font_sizes/font_size = 7
+text = "Striker"
+horizontal_alignment = 1
+
+[node name="StatsGrid" type="HBoxContainer" parent="MainTabs/TabSchedule/TrioCardsHBox/Card1/Margin/VB"]
+layout_mode = 2
+theme_override_constants/separation = 4
+alignment = 1
+
+[node name="ColMove" type="VBoxContainer" parent="MainTabs/TabSchedule/TrioCardsHBox/Card1/Margin/VB/StatsGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+alignment = 1
+
+[node name="H" type="Label" parent="MainTabs/TabSchedule/TrioCardsHBox/Card1/Margin/VB/StatsGrid/ColMove"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.55, 0.65, 0.78, 1)
+theme_override_font_sizes/font_size = 7
+text = "Move"
+horizontal_alignment = 1
+
+[node name="V" type="Label" parent="MainTabs/TabSchedule/TrioCardsHBox/Card1/Margin/VB/StatsGrid/ColMove"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 10
+text = "3"
+horizontal_alignment = 1
+
+[node name="ColHp" type="VBoxContainer" parent="MainTabs/TabSchedule/TrioCardsHBox/Card1/Margin/VB/StatsGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+alignment = 1
+
+[node name="H" type="Label" parent="MainTabs/TabSchedule/TrioCardsHBox/Card1/Margin/VB/StatsGrid/ColHp"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.55, 0.65, 0.78, 1)
+theme_override_font_sizes/font_size = 7
+text = "HP"
+horizontal_alignment = 1
+
+[node name="V" type="Label" parent="MainTabs/TabSchedule/TrioCardsHBox/Card1/Margin/VB/StatsGrid/ColHp"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 10
+text = "1,840"
+horizontal_alignment = 1
+
+[node name="ColAtk" type="VBoxContainer" parent="MainTabs/TabSchedule/TrioCardsHBox/Card1/Margin/VB/StatsGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+alignment = 1
+
+[node name="H" type="Label" parent="MainTabs/TabSchedule/TrioCardsHBox/Card1/Margin/VB/StatsGrid/ColAtk"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.55, 0.65, 0.78, 1)
+theme_override_font_sizes/font_size = 7
+text = "Atk"
+horizontal_alignment = 1
+
+[node name="V" type="Label" parent="MainTabs/TabSchedule/TrioCardsHBox/Card1/Margin/VB/StatsGrid/ColAtk"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 10
+text = "340"
+horizontal_alignment = 1
+
+[node name="Banner" type="PanelContainer" parent="MainTabs/TabSchedule/TrioCardsHBox/Card1/Margin/VB"]
+custom_minimum_size = Vector2(0, 18)
+layout_mode = 2
+size_flags_vertical = 10
+theme_override_styles/panel = SubResource("StyleBoxFlat_technique_banner")
+
+[node name="Lbl" type="Label" parent="MainTabs/TabSchedule/TrioCardsHBox/Card1/Margin/VB/Banner"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.92, 0.78, 0.35, 1)
+theme_override_font_sizes/font_size = 8
+text = "Ignition Dash"
+horizontal_alignment = 1
+clip_text = true
+
+[node name="Card2" type="PanelContainer" parent="MainTabs/TabSchedule/TrioCardsHBox"]
+custom_minimum_size = Vector2(210, 175)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_card_rpg")
+
+[node name="Margin" type="MarginContainer" parent="MainTabs/TabSchedule/TrioCardsHBox/Card2"]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="VB" type="VBoxContainer" parent="MainTabs/TabSchedule/TrioCardsHBox/Card2/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 5
+
+[node name="TopRow" type="HBoxContainer" parent="MainTabs/TabSchedule/TrioCardsHBox/Card2/Margin/VB"]
+layout_mode = 2
+
+[node name="PosTag" type="Label" parent="MainTabs/TabSchedule/TrioCardsHBox/Card2/Margin/VB/TopRow"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.35, 0.75, 0.95, 1)
+theme_override_font_sizes/font_size = 8
+text = "◆ Pos. 2: Controller"
+
+[node name="Spacer" type="Control" parent="MainTabs/TabSchedule/TrioCardsHBox/Card2/Margin/VB/TopRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ElemIcon" type="Label" parent="MainTabs/TabSchedule/TrioCardsHBox/Card2/Margin/VB/TopRow"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.13, 0.72, 0.85, 1)
+theme_override_font_sizes/font_size = 8
+text = ""
+
+[node name="MidRow" type="HBoxContainer" parent="MainTabs/TabSchedule/TrioCardsHBox/Card2/Margin/VB"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="AvatarFrame" type="PanelContainer" parent="MainTabs/TabSchedule/TrioCardsHBox/Card2/Margin/VB/MidRow"]
+clip_contents = true
+custom_minimum_size = Vector2(38, 38)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_avatar_slot")
+
+[node name="Sprite" type="Sprite2D" parent="MainTabs/TabSchedule/TrioCardsHBox/Card2/Margin/VB/MidRow/AvatarFrame"]
+position = Vector2(19, 27)
+scale = Vector2(0.42, 0.42)
+texture = ExtResource("9_water")
+hframes = 4
+vframes = 4
+
+[node name="VBInfo" type="VBoxContainer" parent="MainTabs/TabSchedule/TrioCardsHBox/Card2/Margin/VB/MidRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 1
+alignment = 1
+
+[node name="Name" type="Label" parent="MainTabs/TabSchedule/TrioCardsHBox/Card2/Margin/VB/MidRow/VBInfo"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 11
+text = "Aqua Marina"
+clip_text = true
+
+[node name="Role" type="Label" parent="MainTabs/TabSchedule/TrioCardsHBox/Card2/Margin/VB/MidRow/VBInfo"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.82, 0.88, 0.96, 1)
+theme_override_font_sizes/font_size = 8
+text = "Lv. 12 Water Controller"
+clip_text = true
+
+[node name="ArchetypePill" type="PanelContainer" parent="MainTabs/TabSchedule/TrioCardsHBox/Card2/Margin/VB/MidRow"]
+custom_minimum_size = Vector2(48, 16)
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_styles/panel = SubResource("StyleBoxFlat_pill_shards")
+
+[node name="L" type="Label" parent="MainTabs/TabSchedule/TrioCardsHBox/Card2/Margin/VB/MidRow/ArchetypePill"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.35, 0.75, 0.95, 1)
+theme_override_font_sizes/font_size = 7
+text = "Controller"
+horizontal_alignment = 1
+
+[node name="StatsGrid" type="HBoxContainer" parent="MainTabs/TabSchedule/TrioCardsHBox/Card2/Margin/VB"]
+layout_mode = 2
+theme_override_constants/separation = 4
+alignment = 1
+
+[node name="ColMove" type="VBoxContainer" parent="MainTabs/TabSchedule/TrioCardsHBox/Card2/Margin/VB/StatsGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+alignment = 1
+
+[node name="H" type="Label" parent="MainTabs/TabSchedule/TrioCardsHBox/Card2/Margin/VB/StatsGrid/ColMove"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.55, 0.65, 0.78, 1)
+theme_override_font_sizes/font_size = 7
+text = "Move"
+horizontal_alignment = 1
+
+[node name="V" type="Label" parent="MainTabs/TabSchedule/TrioCardsHBox/Card2/Margin/VB/StatsGrid/ColMove"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 10
+text = "4"
+horizontal_alignment = 1
+
+[node name="ColHp" type="VBoxContainer" parent="MainTabs/TabSchedule/TrioCardsHBox/Card2/Margin/VB/StatsGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+alignment = 1
+
+[node name="H" type="Label" parent="MainTabs/TabSchedule/TrioCardsHBox/Card2/Margin/VB/StatsGrid/ColHp"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.55, 0.65, 0.78, 1)
+theme_override_font_sizes/font_size = 7
+text = "HP"
+horizontal_alignment = 1
+
+[node name="V" type="Label" parent="MainTabs/TabSchedule/TrioCardsHBox/Card2/Margin/VB/StatsGrid/ColHp"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 10
+text = "1,420"
+horizontal_alignment = 1
+
+[node name="ColAtk" type="VBoxContainer" parent="MainTabs/TabSchedule/TrioCardsHBox/Card2/Margin/VB/StatsGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+alignment = 1
+
+[node name="H" type="Label" parent="MainTabs/TabSchedule/TrioCardsHBox/Card2/Margin/VB/StatsGrid/ColAtk"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.55, 0.65, 0.78, 1)
+theme_override_font_sizes/font_size = 7
+text = "Atk"
+horizontal_alignment = 1
+
+[node name="V" type="Label" parent="MainTabs/TabSchedule/TrioCardsHBox/Card2/Margin/VB/StatsGrid/ColAtk"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 10
+text = "290"
+horizontal_alignment = 1
+
+[node name="Banner" type="PanelContainer" parent="MainTabs/TabSchedule/TrioCardsHBox/Card2/Margin/VB"]
+custom_minimum_size = Vector2(0, 18)
+layout_mode = 2
+size_flags_vertical = 10
+theme_override_styles/panel = SubResource("StyleBoxFlat_technique_banner")
+
+[node name="Lbl" type="Label" parent="MainTabs/TabSchedule/TrioCardsHBox/Card2/Margin/VB/Banner"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.35, 0.75, 0.95, 1)
+theme_override_font_sizes/font_size = 8
+text = "Overload Trap"
+horizontal_alignment = 1
+clip_text = true
+
+[node name="Card3" type="PanelContainer" parent="MainTabs/TabSchedule/TrioCardsHBox"]
+custom_minimum_size = Vector2(210, 175)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_card_rpg")
+
+[node name="Margin" type="MarginContainer" parent="MainTabs/TabSchedule/TrioCardsHBox/Card3"]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="VB" type="VBoxContainer" parent="MainTabs/TabSchedule/TrioCardsHBox/Card3/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 5
+
+[node name="TopRow" type="HBoxContainer" parent="MainTabs/TabSchedule/TrioCardsHBox/Card3/Margin/VB"]
+layout_mode = 2
+
+[node name="PosTag" type="Label" parent="MainTabs/TabSchedule/TrioCardsHBox/Card3/Margin/VB/TopRow"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.35, 0.85, 0.55, 1)
+theme_override_font_sizes/font_size = 8
+text = "◆ Pos. 3: Defender"
+
+[node name="Spacer" type="Control" parent="MainTabs/TabSchedule/TrioCardsHBox/Card3/Margin/VB/TopRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ElemIcon" type="Label" parent="MainTabs/TabSchedule/TrioCardsHBox/Card3/Margin/VB/TopRow"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.13, 0.78, 0.47, 1)
+theme_override_font_sizes/font_size = 8
+text = ""
+
+[node name="MidRow" type="HBoxContainer" parent="MainTabs/TabSchedule/TrioCardsHBox/Card3/Margin/VB"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="AvatarFrame" type="PanelContainer" parent="MainTabs/TabSchedule/TrioCardsHBox/Card3/Margin/VB/MidRow"]
+clip_contents = true
+custom_minimum_size = Vector2(38, 38)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_avatar_slot")
+
+[node name="Sprite" type="Sprite2D" parent="MainTabs/TabSchedule/TrioCardsHBox/Card3/Margin/VB/MidRow/AvatarFrame"]
+position = Vector2(19, 27)
+scale = Vector2(0.42, 0.42)
+texture = ExtResource("8_earth")
+hframes = 4
+vframes = 4
+
+[node name="VBInfo" type="VBoxContainer" parent="MainTabs/TabSchedule/TrioCardsHBox/Card3/Margin/VB/MidRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 1
+alignment = 1
+
+[node name="Name" type="Label" parent="MainTabs/TabSchedule/TrioCardsHBox/Card3/Margin/VB/MidRow/VBInfo"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 11
+text = "Terra Boulder"
+clip_text = true
+
+[node name="Role" type="Label" parent="MainTabs/TabSchedule/TrioCardsHBox/Card3/Margin/VB/MidRow/VBInfo"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.82, 0.88, 0.96, 1)
+theme_override_font_sizes/font_size = 8
+text = "Lv. 15 Earth Defender"
+clip_text = true
+
+[node name="ArchetypePill" type="PanelContainer" parent="MainTabs/TabSchedule/TrioCardsHBox/Card3/Margin/VB/MidRow"]
+custom_minimum_size = Vector2(48, 16)
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_styles/panel = SubResource("StyleBoxFlat_pill_district")
+
+[node name="L" type="Label" parent="MainTabs/TabSchedule/TrioCardsHBox/Card3/Margin/VB/MidRow/ArchetypePill"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.35, 0.85, 0.55, 1)
+theme_override_font_sizes/font_size = 7
+text = "Defender"
+horizontal_alignment = 1
+
+[node name="StatsGrid" type="HBoxContainer" parent="MainTabs/TabSchedule/TrioCardsHBox/Card3/Margin/VB"]
+layout_mode = 2
+theme_override_constants/separation = 4
+alignment = 1
+
+[node name="ColMove" type="VBoxContainer" parent="MainTabs/TabSchedule/TrioCardsHBox/Card3/Margin/VB/StatsGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+alignment = 1
+
+[node name="H" type="Label" parent="MainTabs/TabSchedule/TrioCardsHBox/Card3/Margin/VB/StatsGrid/ColMove"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.55, 0.65, 0.78, 1)
+theme_override_font_sizes/font_size = 7
+text = "Move"
+horizontal_alignment = 1
+
+[node name="V" type="Label" parent="MainTabs/TabSchedule/TrioCardsHBox/Card3/Margin/VB/StatsGrid/ColMove"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 10
+text = "2"
+horizontal_alignment = 1
+
+[node name="ColHp" type="VBoxContainer" parent="MainTabs/TabSchedule/TrioCardsHBox/Card3/Margin/VB/StatsGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+alignment = 1
+
+[node name="H" type="Label" parent="MainTabs/TabSchedule/TrioCardsHBox/Card3/Margin/VB/StatsGrid/ColHp"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.55, 0.65, 0.78, 1)
+theme_override_font_sizes/font_size = 7
+text = "HP"
+horizontal_alignment = 1
+
+[node name="V" type="Label" parent="MainTabs/TabSchedule/TrioCardsHBox/Card3/Margin/VB/StatsGrid/ColHp"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 10
+text = "2,650"
+horizontal_alignment = 1
+
+[node name="ColAtk" type="VBoxContainer" parent="MainTabs/TabSchedule/TrioCardsHBox/Card3/Margin/VB/StatsGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+alignment = 1
+
+[node name="H" type="Label" parent="MainTabs/TabSchedule/TrioCardsHBox/Card3/Margin/VB/StatsGrid/ColAtk"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.55, 0.65, 0.78, 1)
+theme_override_font_sizes/font_size = 7
+text = "Atk"
+horizontal_alignment = 1
+
+[node name="V" type="Label" parent="MainTabs/TabSchedule/TrioCardsHBox/Card3/Margin/VB/StatsGrid/ColAtk"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 10
+text = "210"
+horizontal_alignment = 1
+
+[node name="Banner" type="PanelContainer" parent="MainTabs/TabSchedule/TrioCardsHBox/Card3/Margin/VB"]
+custom_minimum_size = Vector2(0, 18)
+layout_mode = 2
+size_flags_vertical = 10
+theme_override_styles/panel = SubResource("StyleBoxFlat_technique_banner")
+
+[node name="Lbl" type="Label" parent="MainTabs/TabSchedule/TrioCardsHBox/Card3/Margin/VB/Banner"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.35, 0.85, 0.55, 1)
+theme_override_font_sizes/font_size = 8
+text = "Granite Bulwark"
+horizontal_alignment = 1
+clip_text = true
+
+[node name="Card4" type="PanelContainer" parent="MainTabs/TabSchedule/TrioCardsHBox"]
+custom_minimum_size = Vector2(210, 175)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_card_rpg")
+
+[node name="Margin" type="MarginContainer" parent="MainTabs/TabSchedule/TrioCardsHBox/Card4"]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="VB" type="VBoxContainer" parent="MainTabs/TabSchedule/TrioCardsHBox/Card4/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 5
+
+[node name="TopRow" type="HBoxContainer" parent="MainTabs/TabSchedule/TrioCardsHBox/Card4/Margin/VB"]
+layout_mode = 2
+
+[node name="PosTag" type="Label" parent="MainTabs/TabSchedule/TrioCardsHBox/Card4/Margin/VB/TopRow"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.85, 0.70, 0.35, 1)
+theme_override_font_sizes/font_size = 8
+text = "◆ Pos. 4: Flex"
+
+[node name="Spacer" type="Control" parent="MainTabs/TabSchedule/TrioCardsHBox/Card4/Margin/VB/TopRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ElemIcon" type="Label" parent="MainTabs/TabSchedule/TrioCardsHBox/Card4/Margin/VB/TopRow"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 8
+text = ""
+
+[node name="MidRow" type="HBoxContainer" parent="MainTabs/TabSchedule/TrioCardsHBox/Card4/Margin/VB"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="AvatarFrame" type="PanelContainer" parent="MainTabs/TabSchedule/TrioCardsHBox/Card4/Margin/VB/MidRow"]
+clip_contents = true
+custom_minimum_size = Vector2(38, 38)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_avatar_slot")
+
+[node name="Sprite" type="Sprite2D" parent="MainTabs/TabSchedule/TrioCardsHBox/Card4/Margin/VB/MidRow/AvatarFrame"]
+position = Vector2(19, 27)
+scale = Vector2(0.42, 0.42)
+texture = ExtResource("10_air")
+hframes = 4
+vframes = 4
+
+[node name="VBInfo" type="VBoxContainer" parent="MainTabs/TabSchedule/TrioCardsHBox/Card4/Margin/VB/MidRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 1
+alignment = 1
+
+[node name="Name" type="Label" parent="MainTabs/TabSchedule/TrioCardsHBox/Card4/Margin/VB/MidRow/VBInfo"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 11
+text = "[Open Slot]"
+clip_text = true
+
+[node name="Role" type="Label" parent="MainTabs/TabSchedule/TrioCardsHBox/Card4/Margin/VB/MidRow/VBInfo"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.75, 0.85, 1)
+theme_override_font_sizes/font_size = 8
+text = "Available Starter Slot"
+clip_text = true
+
+[node name="ArchetypePill" type="PanelContainer" parent="MainTabs/TabSchedule/TrioCardsHBox/Card4/Margin/VB/MidRow"]
+custom_minimum_size = Vector2(48, 16)
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_styles/panel = SubResource("StyleBoxFlat_pill_district")
+
+[node name="L" type="Label" parent="MainTabs/TabSchedule/TrioCardsHBox/Card4/Margin/VB/MidRow/ArchetypePill"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.75, 0.85, 0.95, 1)
+theme_override_font_sizes/font_size = 7
+text = "Flex"
+horizontal_alignment = 1
+
+[node name="StatsGrid" type="HBoxContainer" parent="MainTabs/TabSchedule/TrioCardsHBox/Card4/Margin/VB"]
+layout_mode = 2
+theme_override_constants/separation = 4
+alignment = 1
+
+[node name="ColMove" type="VBoxContainer" parent="MainTabs/TabSchedule/TrioCardsHBox/Card4/Margin/VB/StatsGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+alignment = 1
+
+[node name="H" type="Label" parent="MainTabs/TabSchedule/TrioCardsHBox/Card4/Margin/VB/StatsGrid/ColMove"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.55, 0.65, 0.78, 1)
+theme_override_font_sizes/font_size = 7
+text = "Move"
+horizontal_alignment = 1
+
+[node name="V" type="Label" parent="MainTabs/TabSchedule/TrioCardsHBox/Card4/Margin/VB/StatsGrid/ColMove"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 10
+text = "--"
+horizontal_alignment = 1
+
+[node name="ColHp" type="VBoxContainer" parent="MainTabs/TabSchedule/TrioCardsHBox/Card4/Margin/VB/StatsGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+alignment = 1
+
+[node name="H" type="Label" parent="MainTabs/TabSchedule/TrioCardsHBox/Card4/Margin/VB/StatsGrid/ColHp"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.55, 0.65, 0.78, 1)
+theme_override_font_sizes/font_size = 7
+text = "HP"
+horizontal_alignment = 1
+
+[node name="V" type="Label" parent="MainTabs/TabSchedule/TrioCardsHBox/Card4/Margin/VB/StatsGrid/ColHp"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 10
+text = "--"
+horizontal_alignment = 1
+
+[node name="ColAtk" type="VBoxContainer" parent="MainTabs/TabSchedule/TrioCardsHBox/Card4/Margin/VB/StatsGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+alignment = 1
+
+[node name="H" type="Label" parent="MainTabs/TabSchedule/TrioCardsHBox/Card4/Margin/VB/StatsGrid/ColAtk"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.55, 0.65, 0.78, 1)
+theme_override_font_sizes/font_size = 7
+text = "Atk"
+horizontal_alignment = 1
+
+[node name="V" type="Label" parent="MainTabs/TabSchedule/TrioCardsHBox/Card4/Margin/VB/StatsGrid/ColAtk"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 10
+text = "--"
+horizontal_alignment = 1
+
+[node name="Banner" type="PanelContainer" parent="MainTabs/TabSchedule/TrioCardsHBox/Card4/Margin/VB"]
+custom_minimum_size = Vector2(0, 18)
+layout_mode = 2
+size_flags_vertical = 10
+theme_override_styles/panel = SubResource("StyleBoxFlat_technique_banner")
+
+[node name="Lbl" type="Label" parent="MainTabs/TabSchedule/TrioCardsHBox/Card4/Margin/VB/Banner"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.75, 0.82, 0.92, 1)
+theme_override_font_sizes/font_size = 8
+text = "Available Slot"
+horizontal_alignment = 1
+clip_text = true
+
+[node name="Card5" type="PanelContainer" parent="MainTabs/TabSchedule/TrioCardsHBox"]
+custom_minimum_size = Vector2(210, 175)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_card_rpg")
+
+[node name="Margin" type="MarginContainer" parent="MainTabs/TabSchedule/TrioCardsHBox/Card5"]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="VB" type="VBoxContainer" parent="MainTabs/TabSchedule/TrioCardsHBox/Card5/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 5
+
+[node name="TopRow" type="HBoxContainer" parent="MainTabs/TabSchedule/TrioCardsHBox/Card5/Margin/VB"]
+layout_mode = 2
+
+[node name="PosTag" type="Label" parent="MainTabs/TabSchedule/TrioCardsHBox/Card5/Margin/VB/TopRow"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.85, 0.70, 0.35, 1)
+theme_override_font_sizes/font_size = 8
+text = "◆ Pos. 5: Anchor"
+
+[node name="Spacer" type="Control" parent="MainTabs/TabSchedule/TrioCardsHBox/Card5/Margin/VB/TopRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ElemIcon" type="Label" parent="MainTabs/TabSchedule/TrioCardsHBox/Card5/Margin/VB/TopRow"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 8
+text = ""
+
+[node name="MidRow" type="HBoxContainer" parent="MainTabs/TabSchedule/TrioCardsHBox/Card5/Margin/VB"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="AvatarFrame" type="PanelContainer" parent="MainTabs/TabSchedule/TrioCardsHBox/Card5/Margin/VB/MidRow"]
+clip_contents = true
+custom_minimum_size = Vector2(38, 38)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_avatar_slot")
+
+[node name="Sprite" type="Sprite2D" parent="MainTabs/TabSchedule/TrioCardsHBox/Card5/Margin/VB/MidRow/AvatarFrame"]
+position = Vector2(19, 27)
+scale = Vector2(0.42, 0.42)
+texture = ExtResource("8_earth")
+hframes = 4
+vframes = 4
+
+[node name="VBInfo" type="VBoxContainer" parent="MainTabs/TabSchedule/TrioCardsHBox/Card5/Margin/VB/MidRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 1
+alignment = 1
+
+[node name="Name" type="Label" parent="MainTabs/TabSchedule/TrioCardsHBox/Card5/Margin/VB/MidRow/VBInfo"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 11
+text = "[Open Slot]"
+clip_text = true
+
+[node name="Role" type="Label" parent="MainTabs/TabSchedule/TrioCardsHBox/Card5/Margin/VB/MidRow/VBInfo"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.75, 0.85, 1)
+theme_override_font_sizes/font_size = 8
+text = "Available Starter Slot"
+clip_text = true
+
+[node name="ArchetypePill" type="PanelContainer" parent="MainTabs/TabSchedule/TrioCardsHBox/Card5/Margin/VB/MidRow"]
+custom_minimum_size = Vector2(48, 16)
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_styles/panel = SubResource("StyleBoxFlat_pill_district")
+
+[node name="L" type="Label" parent="MainTabs/TabSchedule/TrioCardsHBox/Card5/Margin/VB/MidRow/ArchetypePill"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.75, 0.85, 0.95, 1)
+theme_override_font_sizes/font_size = 7
+text = "Anchor"
+horizontal_alignment = 1
+
+[node name="StatsGrid" type="HBoxContainer" parent="MainTabs/TabSchedule/TrioCardsHBox/Card5/Margin/VB"]
+layout_mode = 2
+theme_override_constants/separation = 4
+alignment = 1
+
+[node name="ColMove" type="VBoxContainer" parent="MainTabs/TabSchedule/TrioCardsHBox/Card5/Margin/VB/StatsGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+alignment = 1
+
+[node name="H" type="Label" parent="MainTabs/TabSchedule/TrioCardsHBox/Card5/Margin/VB/StatsGrid/ColMove"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.55, 0.65, 0.78, 1)
+theme_override_font_sizes/font_size = 7
+text = "Move"
+horizontal_alignment = 1
+
+[node name="V" type="Label" parent="MainTabs/TabSchedule/TrioCardsHBox/Card5/Margin/VB/StatsGrid/ColMove"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 10
+text = "--"
+horizontal_alignment = 1
+
+[node name="ColHp" type="VBoxContainer" parent="MainTabs/TabSchedule/TrioCardsHBox/Card5/Margin/VB/StatsGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+alignment = 1
+
+[node name="H" type="Label" parent="MainTabs/TabSchedule/TrioCardsHBox/Card5/Margin/VB/StatsGrid/ColHp"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.55, 0.65, 0.78, 1)
+theme_override_font_sizes/font_size = 7
+text = "HP"
+horizontal_alignment = 1
+
+[node name="V" type="Label" parent="MainTabs/TabSchedule/TrioCardsHBox/Card5/Margin/VB/StatsGrid/ColHp"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 10
+text = "--"
+horizontal_alignment = 1
+
+[node name="ColAtk" type="VBoxContainer" parent="MainTabs/TabSchedule/TrioCardsHBox/Card5/Margin/VB/StatsGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+alignment = 1
+
+[node name="H" type="Label" parent="MainTabs/TabSchedule/TrioCardsHBox/Card5/Margin/VB/StatsGrid/ColAtk"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.55, 0.65, 0.78, 1)
+theme_override_font_sizes/font_size = 7
+text = "Atk"
+horizontal_alignment = 1
+
+[node name="V" type="Label" parent="MainTabs/TabSchedule/TrioCardsHBox/Card5/Margin/VB/StatsGrid/ColAtk"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 10
+text = "--"
+horizontal_alignment = 1
+
+[node name="Banner" type="PanelContainer" parent="MainTabs/TabSchedule/TrioCardsHBox/Card5/Margin/VB"]
+custom_minimum_size = Vector2(0, 18)
+layout_mode = 2
+size_flags_vertical = 10
+theme_override_styles/panel = SubResource("StyleBoxFlat_technique_banner")
+
+[node name="Lbl" type="Label" parent="MainTabs/TabSchedule/TrioCardsHBox/Card5/Margin/VB/Banner"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.75, 0.82, 0.92, 1)
+theme_override_font_sizes/font_size = 8
+text = "Available Slot"
+horizontal_alignment = 1
+clip_text = true
+
+[node name="Div2" type="Control" parent="MainTabs/TabSchedule"]
+custom_minimum_size = Vector2(0, 6)
+layout_mode = 2
+script = ExtResource("5_divider")
+
+[node name="NextMatchCard" type="HBoxContainer" parent="MainTabs/TabSchedule"]
+custom_minimum_size = Vector2(0, 70)
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="IconFrame" type="PanelContainer" parent="MainTabs/TabSchedule/NextMatchCard"]
+custom_minimum_size = Vector2(56, 56)
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_styles/panel = SubResource("StyleBoxFlat_avatar_slot")
+
+[node name="IconAxe" type="TextureRect" parent="MainTabs/TabSchedule/NextMatchCard/IconFrame"]
+layout_mode = 2
+texture = ExtResource("20_axes")
+expand_mode = 1
+stretch_mode = 5
+modulate = Color(0.92, 0.78, 0.35, 1)
+
+[node name="VBInfo" type="VBoxContainer" parent="MainTabs/TabSchedule/NextMatchCard"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="Tag" type="Label" parent="MainTabs/TabSchedule/NextMatchCard/VBInfo"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.92, 0.78, 0.35, 1)
+theme_override_font_sizes/font_size = 10
+text = "Next Tournament Match: Round 1"
+
+[node name="OppName" type="Label" parent="MainTabs/TabSchedule/NextMatchCard/VBInfo"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 16
+text = "vs Gale Force (Scrapfield Arena)"
+
+[node name="PillsRow" type="HBoxContainer" parent="MainTabs/TabSchedule/NextMatchCard/VBInfo"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="PillExp" type="PanelContainer" parent="MainTabs/TabSchedule/NextMatchCard/VBInfo/PillsRow"]
+custom_minimum_size = Vector2(75, 18)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_pill_shards")
+
+[node name="L" type="Label" parent="MainTabs/TabSchedule/NextMatchCard/VBInfo/PillsRow/PillExp"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.22, 0.78, 0.91, 1)
+theme_override_font_sizes/font_size = 8
+text = "+180 XP"
+horizontal_alignment = 1
+
+[node name="PillG" type="PanelContainer" parent="MainTabs/TabSchedule/NextMatchCard/VBInfo/PillsRow"]
+custom_minimum_size = Vector2(75, 18)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_pill_gold")
+
+[node name="L" type="Label" parent="MainTabs/TabSchedule/NextMatchCard/VBInfo/PillsRow/PillG"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.78, 0.26, 1)
+theme_override_font_sizes/font_size = 8
+text = "2,400 G"
+horizontal_alignment = 1
+
+[node name="OppDetails" type="Label" parent="MainTabs/TabSchedule/NextMatchCard/VBInfo/PillsRow"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.70, 0.78, 0.90, 1)
+theme_override_font_sizes/font_size = 9
+text = "◆ Captain: Zephyr (Air)"
+
+[node name="TacticalAdv" type="PanelContainer" parent="MainTabs/TabSchedule/NextMatchCard/VBInfo"]
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_pill_district")
+
+[node name="MatchupCounter" type="Label" parent="MainTabs/TabSchedule/NextMatchCard/VBInfo/TacticalAdv"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.35, 0.85, 0.55, 1)
+theme_override_font_sizes/font_size = 9
+text = "Tactical Advantage: Your Earth counters enemy Air (+25% damage bonus)"
+horizontal_alignment = 1
+
+[node name="BtnEnterMatch" type="Button" parent="MainTabs/TabSchedule/NextMatchCard"]
+custom_minimum_size = Vector2(190, 46)
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_fonts/font = ExtResource("6_font")
+theme_override_font_sizes/font_size = 14
+text = "Enter Battle"
+
+[node name="Div3" type="Control" parent="MainTabs/TabSchedule"]
+custom_minimum_size = Vector2(0, 6)
+layout_mode = 2
+script = ExtResource("5_divider")
+
+[node name="TimelineSection" type="VBoxContainer" parent="MainTabs/TabSchedule"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Title" type="Label" parent="MainTabs/TabSchedule/TimelineSection"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.92, 0.76, 0.28, 1)
+theme_override_fonts/font = ExtResource("6_font")
+theme_override_font_sizes/font_size = 10
+text = "◆ Campaign Timeline (7 Days)"
+
+[node name="TimelineHBox" type="HBoxContainer" parent="MainTabs/TabSchedule/TimelineSection"]
+custom_minimum_size = Vector2(0, 32)
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Day1" type="PanelContainer" parent="MainTabs/TabSchedule/TimelineSection/TimelineHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_timeline_slot")
+
+[node name="L" type="Label" parent="MainTabs/TabSchedule/TimelineSection/TimelineHBox/Day1"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.78, 0.26, 1)
+theme_override_font_sizes/font_size = 9
+text = "Day 1 • Active"
+horizontal_alignment = 1
+
+[node name="Day2" type="PanelContainer" parent="MainTabs/TabSchedule/TimelineSection/TimelineHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_timeline_slot")
+
+[node name="L" type="Label" parent="MainTabs/TabSchedule/TimelineSection/TimelineHBox/Day2"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.55, 0.62, 0.72, 0.8)
+theme_override_font_sizes/font_size = 9
+text = "Day 2"
+horizontal_alignment = 1
+
+[node name="Day3" type="PanelContainer" parent="MainTabs/TabSchedule/TimelineSection/TimelineHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_timeline_slot")
+
+[node name="L" type="Label" parent="MainTabs/TabSchedule/TimelineSection/TimelineHBox/Day3"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.55, 0.62, 0.72, 0.8)
+theme_override_font_sizes/font_size = 9
+text = "Day 3"
+horizontal_alignment = 1
+
+[node name="Day4" type="PanelContainer" parent="MainTabs/TabSchedule/TimelineSection/TimelineHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_timeline_slot")
+
+[node name="L" type="Label" parent="MainTabs/TabSchedule/TimelineSection/TimelineHBox/Day4"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.55, 0.62, 0.72, 0.8)
+theme_override_font_sizes/font_size = 9
+text = "Day 4"
+horizontal_alignment = 1
+
+[node name="Day5" type="PanelContainer" parent="MainTabs/TabSchedule/TimelineSection/TimelineHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_timeline_slot")
+
+[node name="L" type="Label" parent="MainTabs/TabSchedule/TimelineSection/TimelineHBox/Day5"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.55, 0.62, 0.72, 0.8)
+theme_override_font_sizes/font_size = 9
+text = "Day 5"
+horizontal_alignment = 1
+
+[node name="Day6" type="PanelContainer" parent="MainTabs/TabSchedule/TimelineSection/TimelineHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_timeline_slot")
+
+[node name="L" type="Label" parent="MainTabs/TabSchedule/TimelineSection/TimelineHBox/Day6"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.55, 0.62, 0.72, 0.8)
+theme_override_font_sizes/font_size = 9
+text = "Day 6"
+horizontal_alignment = 1
+
+[node name="Day7" type="PanelContainer" parent="MainTabs/TabSchedule/TimelineSection/TimelineHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_timeline_boss")
+
+[node name="L" type="Label" parent="MainTabs/TabSchedule/TimelineSection/TimelineHBox/Day7"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.45, 0.50, 1)
+theme_override_font_sizes/font_size = 9
+text = "Day 7 • Boss"
+horizontal_alignment = 1
+
+[node name="TabTeam" type="ScrollContainer" parent="MainTabs"]
+visible = false
+layout_mode = 2
+
+[node name="AlliesContainer" type="VBoxContainer" parent="MainTabs/TabTeam"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 12
+
+[node name="TabBattle" type="ScrollContainer" parent="MainTabs"]
+visible = false
+layout_mode = 2
+follow_focus = false
+horizontal_scroll_mode = 0
+vertical_scroll_mode = 0
+
+[node name="VB" type="VBoxContainer" parent="MainTabs/TabBattle"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 10
+
+[node name="HeaderBox" type="HBoxContainer" parent="MainTabs/TabBattle/VB"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="MainTabs/TabBattle/VB/HeaderBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_fonts/font = ExtResource("6_font")
+theme_override_font_sizes/font_size = 16
+text = "Tactical Map Blueprint: 18x10 Deployment Grid"
+
+[node name="Spacer" type="Control" parent="MainTabs/TabBattle/VB/HeaderBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="SectorTag" type="Label" parent="MainTabs/TabBattle/VB/HeaderBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.4, 0.4, 1)
+theme_override_font_sizes/font_size = 13
+text = "Arena: Scrapfield Sector 4"
+
+[node name="HBoxMain" type="HBoxContainer" parent="MainTabs/TabBattle/VB"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="MapFrame" type="PanelContainer" parent="MainTabs/TabBattle/VB/HBoxMain"]
+custom_minimum_size = Vector2(400, 360)
+layout_mode = 2
+script = ExtResource("4_bracket")
+bracket_color = Color(0.13, 0.72, 0.85, 1)
+
+[node name="TacticalMap" type="Control" parent="MainTabs/TabBattle/VB/HBoxMain/MapFrame"]
+layout_mode = 2
+script = ExtResource("7_map")
+
+[node name="IntelPanel" type="PanelContainer" parent="MainTabs/TabBattle/VB/HBoxMain"]
+layout_mode = 2
+size_flags_horizontal = 3
+script = ExtResource("4_bracket")
+bracket_color = Color(0.84, 0.13, 0.35, 1)
+
+[node name="VB" type="VBoxContainer" parent="MainTabs/TabBattle/VB/HBoxMain/IntelPanel"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="T" type="Label" parent="MainTabs/TabBattle/VB/HBoxMain/IntelPanel/VB"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.85, 0.35, 1)
+theme_override_font_sizes/font_size = 14
+text = "Tactical Intel & Environmental Modifiers"
+
+[node name="Hazards" type="Label" parent="MainTabs/TabBattle/VB/HBoxMain/IntelPanel/VB"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.5, 0.5, 1)
+theme_override_font_sizes/font_size = 12
+text = "Hazards (C1, D1, E2): Poison vents deal 15 dmg per turn."
+
+[node name="Power" type="Label" parent="MainTabs/TabBattle/VB/HBoxMain/IntelPanel/VB"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.4, 0.9, 1, 1)
+theme_override_font_sizes/font_size = 12
+text = "Power Surge (B3, D4): +20% Elemental Burst damage."
+
+[node name="Cover" type="Label" parent="MainTabs/TabBattle/VB/HBoxMain/IntelPanel/VB"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.8, 0.9, 1)
+theme_override_font_sizes/font_size = 12
+text = "Cover (B2, D3, C4, B5): Heavy barricades grant +30% Armor."
+
+[node name="Deploy" type="Label" parent="MainTabs/TabBattle/VB/HBoxMain/IntelPanel/VB"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.5, 1, 0.6, 1)
+theme_override_font_sizes/font_size = 12
+text = "Deploy Row: Vanguard Row 6 (A6, B6, D6, E6)."
+
+[node name="BtnLaunchArena" type="Button" parent="MainTabs/TabBattle/VB/HBoxMain/IntelPanel/VB"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+size_flags_vertical = 10
+theme_override_fonts/font = ExtResource("6_font")
+theme_override_font_sizes/font_size = 14
+text = "Enter Battle Arena"
+
+[node name="TabIntel" type="ScrollContainer" parent="MainTabs"]
+visible = false
+layout_mode = 2
+
+[node name="VBox" type="VBoxContainer" parent="MainTabs/TabIntel"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 10
+
+[node name="TabSkills" type="VBoxContainer" parent="MainTabs"]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="TopFighterBar" type="VBoxContainer" parent="MainTabs/TabSkills"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="HBox" type="HBoxContainer" parent="MainTabs/TabSkills"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 16
+
+[node name="ProfileCol" type="VBoxContainer" parent="MainTabs/TabSkills/HBox"]
+custom_minimum_size = Vector2(280, 0)
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 10
+
+[node name="PanelStats" type="PanelContainer" parent="MainTabs/TabSkills/HBox/ProfileCol"]
+layout_mode = 2
+
+[node name="Margin" type="MarginContainer" parent="MainTabs/TabSkills/HBox/ProfileCol/PanelStats"]
+layout_mode = 2
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 14
+theme_override_constants/margin_bottom = 10
+
+[node name="VB" type="VBoxContainer" parent="MainTabs/TabSkills/HBox/ProfileCol/PanelStats/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Title" type="Label" parent="MainTabs/TabSkills/HBox/ProfileCol/PanelStats/Margin/VB"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.91, 0.66, 0.19, 1)
+theme_override_fonts/font = ExtResource("6_font")
+theme_override_font_sizes/font_size = 12
+text = "◆ Combatant Profile"
+horizontal_alignment = 1
+
+[node name="LblStats" type="Label" parent="MainTabs/TabSkills/HBox/ProfileCol/PanelStats/Margin/VB"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.95, 1, 1)
+theme_override_font_sizes/font_size = 11
+text = "Name: Valen
+Element: Earth
+Level: 31  (XP: 60/130)
+Combat Power: 8,990 CP
+Max HP: 2,650  •  Max MP: 130
+Attack: 340  •  Defense: 210  •  Speed: 3"
+
+[node name="PanelActions" type="PanelContainer" parent="MainTabs/TabSkills/HBox/ProfileCol"]
+layout_mode = 2
+
+[node name="Margin" type="MarginContainer" parent="MainTabs/TabSkills/HBox/ProfileCol/PanelActions"]
+layout_mode = 2
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 14
+theme_override_constants/margin_bottom = 10
+
+[node name="VB" type="VBoxContainer" parent="MainTabs/TabSkills/HBox/ProfileCol/PanelActions/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="BtnSave" type="Button" parent="MainTabs/TabSkills/HBox/ProfileCol/PanelActions/Margin/VB"]
+custom_minimum_size = Vector2(0, 34)
+layout_mode = 2
+theme_override_fonts/font = ExtResource("6_font")
+theme_override_font_sizes/font_size = 11
+text = "Save Campaign"
+
+[node name="BtnDevUnlock" type="Button" parent="MainTabs/TabSkills/HBox/ProfileCol/PanelActions/Margin/VB"]
+custom_minimum_size = Vector2(0, 34)
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "Dev: Unlock All & Lv. 30"
+
+[node name="BtnMainMenu" type="Button" parent="MainTabs/TabSkills/HBox/ProfileCol/PanelActions/Margin/VB"]
+custom_minimum_size = Vector2(0, 34)
+layout_mode = 2
+theme_override_fonts/font = ExtResource("6_font")
+theme_override_font_sizes/font_size = 11
+text = "Main Menu"
+
+[node name="SaveFeedback" type="Label" parent="MainTabs/TabSkills/HBox/ProfileCol/PanelActions/Margin/VB"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 10
+horizontal_alignment = 1
+
+[node name="EquippedCol" type="VBoxContainer" parent="MainTabs/TabSkills/HBox"]
+custom_minimum_size = Vector2(300, 0)
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Title" type="Label" parent="MainTabs/TabSkills/HBox/EquippedCol"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.45, 0.45, 1)
+theme_override_fonts/font = ExtResource("6_font")
+theme_override_font_sizes/font_size = 14
+text = "Equipped Techniques (4 Slots)"
+
+[node name="VBox" type="VBoxContainer" parent="MainTabs/TabSkills/HBox/EquippedCol"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="LibraryCol" type="VBoxContainer" parent="MainTabs/TabSkills/HBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="Title" type="Label" parent="MainTabs/TabSkills/HBox/LibraryCol"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.4, 0.85, 1, 1)
+theme_override_fonts/font = ExtResource("6_font")
+theme_override_font_sizes/font_size = 14
+text = "Unlocked Skill Codex"
+
+[node name="ConsumablesBox" type="HBoxContainer" parent="MainTabs/TabSkills/HBox/LibraryCol"]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="BtnDraught" type="Button" parent="MainTabs/TabSkills/HBox/LibraryCol/ConsumablesBox"]
+custom_minimum_size = Vector2(0, 32)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 11
+text = "Stamina Draught (+30)"
+
+[node name="BtnElixir" type="Button" parent="MainTabs/TabSkills/HBox/LibraryCol/ConsumablesBox"]
+custom_minimum_size = Vector2(0, 32)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 11
+text = "Focus Elixir (+25 XP)"
+
+[node name="Scroll" type="ScrollContainer" parent="MainTabs/TabSkills/HBox/LibraryCol"]
+custom_minimum_size = Vector2(0, 260)
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="VBox" type="VBoxContainer" parent="MainTabs/TabSkills/HBox/LibraryCol/Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="TabActivities" type="Control" parent="MainTabs"]
+visible = false
+layout_mode = 2
+
+[node name="Grid" type="GridContainer" parent="MainTabs/TabActivities"]
+layout_mode = 0
+
+[node name="CardTrain" type="Control" parent="MainTabs/TabActivities/Grid"]
+layout_mode = 2
+
+[node name="VBox" type="VBoxContainer" parent="MainTabs/TabActivities/Grid/CardTrain"]
+layout_mode = 0
+
+[node name="BtnTrain" type="Button" parent="MainTabs/TabActivities/Grid/CardTrain/VBox"]
+layout_mode = 2
+
+[node name="CardStreet" type="Control" parent="MainTabs/TabActivities/Grid"]
+layout_mode = 2
+
+[node name="VBox" type="VBoxContainer" parent="MainTabs/TabActivities/Grid/CardStreet"]
+layout_mode = 0
+
+[node name="BtnStreet" type="Button" parent="MainTabs/TabActivities/Grid/CardStreet/VBox"]
+layout_mode = 2
+
+[node name="CardRest" type="Control" parent="MainTabs/TabActivities/Grid"]
+layout_mode = 2
+
+[node name="VBox" type="VBoxContainer" parent="MainTabs/TabActivities/Grid/CardRest"]
+layout_mode = 0
+
+[node name="BtnRest" type="Button" parent="MainTabs/TabActivities/Grid/CardRest/VBox"]
+layout_mode = 2
+
+[node name="ActivityLogCard" type="Control" parent="MainTabs/TabActivities"]
+layout_mode = 0
+
+[node name="ActivityLog" type="Label" parent="MainTabs/TabActivities/ActivityLogCard"]
+layout_mode = 0
+
+[node name="BottomDock" type="HBoxContainer" parent="."]
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = -46.0
+offset_right = -16.0
+offset_bottom = -6.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="BtnDock0" type="Button" parent="BottomDock"]
+custom_minimum_size = Vector2(160, 38)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_fonts/font = ExtResource("6_font")
+theme_override_font_sizes/font_size = 11
+text = "Tournament"
+
+[node name="BtnDock1" type="Button" parent="BottomDock"]
+custom_minimum_size = Vector2(160, 38)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_fonts/font = ExtResource("6_font")
+theme_override_font_sizes/font_size = 11
+text = "Dojo & Roster"
+
+[node name="BtnDock2" type="Button" parent="BottomDock"]
+custom_minimum_size = Vector2(180, 40)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_fonts/font = ExtResource("6_font")
+theme_override_font_sizes/font_size = 12
+text = "Deployment"
+
+[node name="BtnDock3" type="Button" parent="BottomDock"]
+custom_minimum_size = Vector2(160, 38)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_fonts/font = ExtResource("6_font")
+theme_override_font_sizes/font_size = 11
+text = "Scouting Intel"
+
+[node name="BtnDock4" type="Button" parent="BottomDock"]
+custom_minimum_size = Vector2(160, 38)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_fonts/font = ExtResource("6_font")
+theme_override_font_sizes/font_size = 11
+text = "Cultivation"

@@ -1,0 +1,513 @@
+[gd_scene load_steps=12 format=4 uid="uid://ccustom004"]
+
+[ext_resource type="Script" path="res://scripts/character_customization.gd" id="1_custom"]
+[ext_resource type="FontFile" path="res://assets/fonts/Cinzel-Bold.ttf" id="2_font"]
+[ext_resource type="Texture2D" path="res://assets/cobblestone_courtyard.png" id="3_bg_tex"]
+[ext_resource type="Script" path="res://scripts/ornate_divider.gd" id="4_divider"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_lineedit"]
+bg_color = Color(0.04, 0.05, 0.08, 0.95)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.24, 0.32, 0.46, 0.8)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+content_margin_left = 12
+content_margin_top = 8
+content_margin_right = 12
+content_margin_bottom = 8
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_normal"]
+bg_color = Color(0.07, 0.09, 0.14, 0.92)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.20, 0.26, 0.38, 0.75)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_hover"]
+bg_color = Color(0.11, 0.15, 0.24, 0.95)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.50, 0.68, 0.92, 0.9)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_card_subtle"]
+bg_color = Color(0.06, 0.08, 0.12, 0.85)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.16, 0.22, 0.32, 0.6)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_pill"]
+bg_color = Color(0.05, 0.07, 0.10, 0.9)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.20, 0.30, 0.45, 0.7)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+content_margin_left = 12
+content_margin_top = 4
+content_margin_right = 12
+content_margin_bottom = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_start_normal"]
+bg_color = Color(0.85, 0.68, 0.22, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(1, 0.88, 0.45, 0.9)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+shadow_color = Color(0, 0, 0, 0.4)
+shadow_size = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_pedestal_shadow"]
+bg_color = Color(0.02, 0.03, 0.06, 0.6)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.20, 0.28, 0.40, 0.4)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_start_hover"]
+bg_color = Color(0.96, 0.80, 0.32, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(1, 0.95, 0.65, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+shadow_color = Color(0.92, 0.76, 0.30, 0.3)
+shadow_size = 8
+
+[node name="CharacterCustomization" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_custom")
+
+[node name="Background" type="TextureRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("3_bg_tex")
+expand_mode = 1
+stretch_mode = 6
+
+[node name="AtmosphereVignette" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.035, 0.045, 0.07, 0.92)
+
+[node name="MainLayout" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 40.0
+offset_top = 24.0
+offset_right = -40.0
+offset_bottom = -20.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 16
+
+[node name="TitleBox" type="VBoxContainer" parent="MainLayout"]
+layout_mode = 2
+theme_override_constants/separation = 4
+alignment = 1
+
+[node name="Title" type="Label" parent="MainLayout/TitleBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.84, 0.45, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.9)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 2
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 26
+text = "Martial Awakening"
+horizontal_alignment = 1
+
+[node name="Divider" type="Control" parent="MainLayout/TitleBox"]
+custom_minimum_size = Vector2(360, 4)
+layout_mode = 2
+size_flags_horizontal = 4
+script = ExtResource("4_divider")
+
+[node name="Subtitle" type="Label" parent="MainLayout/TitleBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.65, 0.72, 0.82, 1)
+theme_override_font_sizes/font_size = 11
+text = "Forge Your Fighter • Select Your Elemental Discipline"
+horizontal_alignment = 1
+
+[node name="Columns" type="HBoxContainer" parent="MainLayout"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 20
+
+[node name="LeftCol" type="VBoxContainer" parent="MainLayout/Columns"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 0.85
+theme_override_constants/separation = 10
+
+[node name="HeaderIdentity" type="Label" parent="MainLayout/Columns/LeftCol"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.92, 0.78, 0.35, 1)
+theme_override_font_sizes/font_size = 13
+text = "Fighter Identity"
+
+[node name="IdentityCard" type="PanelContainer" parent="MainLayout/Columns/LeftCol"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_card_subtle")
+
+[node name="Margin" type="MarginContainer" parent="MainLayout/Columns/LeftCol/IdentityCard"]
+layout_mode = 2
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_top = 18
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_bottom = 18
+
+[node name="VBox" type="VBoxContainer" parent="MainLayout/Columns/LeftCol/IdentityCard/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="LblNameTag" type="Label" parent="MainLayout/Columns/LeftCol/IdentityCard/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.70, 0.76, 0.86, 1)
+theme_override_font_sizes/font_size = 11
+text = "Warrior Moniker"
+
+[node name="NameEdit" type="LineEdit" parent="MainLayout/Columns/LeftCol/IdentityCard/Margin/VBox"]
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.95, 0.98, 1)
+theme_override_font_sizes/font_size = 13
+theme_override_styles/normal = SubResource("StyleBoxFlat_lineedit")
+text = "Ignis"
+placeholder_text = "Enter warrior name..."
+
+[node name="StatusPill" type="PanelContainer" parent="MainLayout/Columns/LeftCol/IdentityCard/Margin/VBox"]
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_pill")
+
+[node name="AffiliationLabel" type="Label" parent="MainLayout/Columns/LeftCol/IdentityCard/Margin/VBox/StatusPill"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.45, 0.75, 0.95, 1)
+theme_override_font_sizes/font_size = 10
+text = "Street Circuit • Independent"
+horizontal_alignment = 1
+
+[node name="SpacerId" type="Control" parent="MainLayout/Columns/LeftCol/IdentityCard/Margin/VBox"]
+custom_minimum_size = Vector2(0, 8)
+layout_mode = 2
+
+[node name="OriginTitle" type="Label" parent="MainLayout/Columns/LeftCol/IdentityCard/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.85, 0.70, 0.35, 1)
+theme_override_font_sizes/font_size = 11
+text = "Tournament Pathway"
+
+[node name="OriginDesc" type="Label" parent="MainLayout/Columns/LeftCol/IdentityCard/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.60, 0.68, 0.78, 1)
+theme_override_font_sizes/font_size = 10
+text = "You enter the Bronze League as an unseeded rogue striker. Prove your mastery across 7-day tournament brackets to attract scout attention, recruit dedicated squadmates, and qualify for the Apex World Championship."
+autowrap_mode = 2
+
+[node name="CenterCol" type="VBoxContainer" parent="MainLayout/Columns"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 1.25
+theme_override_constants/separation = 10
+
+[node name="HeaderElements" type="Label" parent="MainLayout/Columns/CenterCol"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.92, 0.78, 0.35, 1)
+theme_override_font_sizes/font_size = 13
+text = "Elemental Disciplines"
+
+[node name="GridElements" type="GridContainer" parent="MainLayout/Columns/CenterCol"]
+layout_mode = 2
+theme_override_constants/h_separation = 12
+theme_override_constants/v_separation = 10
+columns = 2
+
+[node name="BtnFire" type="Button" parent="MainLayout/Columns/CenterCol/GridElements"]
+custom_minimum_size = Vector2(0, 58)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 12
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_normal")
+text = "Fire Discipline"
+
+[node name="BtnWater" type="Button" parent="MainLayout/Columns/CenterCol/GridElements"]
+custom_minimum_size = Vector2(0, 58)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 12
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_normal")
+text = "Water Discipline"
+
+[node name="BtnEarth" type="Button" parent="MainLayout/Columns/CenterCol/GridElements"]
+custom_minimum_size = Vector2(0, 58)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 12
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_normal")
+text = "Earth Discipline"
+
+[node name="BtnAir" type="Button" parent="MainLayout/Columns/CenterCol/GridElements"]
+custom_minimum_size = Vector2(0, 58)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 12
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_normal")
+text = "Air Discipline"
+
+[node name="LoreCard" type="PanelContainer" parent="MainLayout/Columns/CenterCol"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_card_subtle")
+
+[node name="LoreMargin" type="MarginContainer" parent="MainLayout/Columns/CenterCol/LoreCard"]
+layout_mode = 2
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_bottom = 16
+
+[node name="LoreVBox" type="VBoxContainer" parent="MainLayout/Columns/CenterCol/LoreCard/LoreMargin"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="DisciplineTitle" type="Label" parent="MainLayout/Columns/CenterCol/LoreCard/LoreMargin/LoreVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.84, 0.40, 1)
+theme_override_font_sizes/font_size = 13
+text = "Discipline Philosophy"
+
+[node name="DisciplineDesc" type="Label" parent="MainLayout/Columns/CenterCol/LoreCard/LoreMargin/LoreVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.85, 0.90, 0.96, 1)
+theme_override_font_sizes/font_size = 11
+text = "Focuses on explosive momentum, high burst strikes, and burning destruction to break enemy lines."
+autowrap_mode = 2
+
+[node name="StarterSkillLabel" type="Label" parent="MainLayout/Columns/CenterCol/LoreCard/LoreMargin/LoreVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.35, 0.85, 0.55, 1)
+theme_override_font_sizes/font_size = 11
+text = "Starter Martial Art: Combustion (Damage: 35 • MP: 25 • Range: 2)"
+
+[node name="RightCol" type="VBoxContainer" parent="MainLayout/Columns"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 1.05
+theme_override_constants/separation = 10
+
+[node name="LblProfile" type="Label" parent="MainLayout/Columns/RightCol"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.92, 0.78, 0.35, 1)
+theme_override_font_sizes/font_size = 13
+text = "Combatant Profile"
+
+[node name="PreviewCard" type="PanelContainer" parent="MainLayout/Columns/RightCol"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_card_subtle")
+
+[node name="Margin" type="MarginContainer" parent="MainLayout/Columns/RightCol/PreviewCard"]
+layout_mode = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 14
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 14
+
+[node name="VBox" type="VBoxContainer" parent="MainLayout/Columns/RightCol/PreviewCard/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="PedestalBox" type="CenterContainer" parent="MainLayout/Columns/RightCol/PreviewCard/Margin/VBox"]
+layout_mode = 2
+
+[node name="PreviewFrame" type="Control" parent="MainLayout/Columns/RightCol/PreviewCard/Margin/VBox/PedestalBox"]
+custom_minimum_size = Vector2(180, 160)
+layout_mode = 2
+
+[node name="PedestalShadow" type="Panel" parent="MainLayout/Columns/RightCol/PreviewCard/Margin/VBox/PedestalBox/PreviewFrame"]
+layout_mode = 0
+offset_left = 50.0
+offset_top = 110.0
+offset_right = 130.0
+offset_bottom = 124.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_pedestal_shadow")
+
+[node name="PreviewSprite" type="Sprite2D" parent="MainLayout/Columns/RightCol/PreviewCard/Margin/VBox/PedestalBox/PreviewFrame"]
+position = Vector2(90, 78)
+scale = Vector2(1.2, 1.2)
+hframes = 4
+vframes = 4
+
+[node name="DirControls" type="HBoxContainer" parent="MainLayout/Columns/RightCol/PreviewCard/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="BtnSouth" type="Button" parent="MainLayout/Columns/RightCol/PreviewCard/Margin/VBox/DirControls"]
+custom_minimum_size = Vector2(56, 26)
+layout_mode = 2
+theme_override_font_sizes/font_size = 9
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_normal")
+text = "South"
+
+[node name="BtnEast" type="Button" parent="MainLayout/Columns/RightCol/PreviewCard/Margin/VBox/DirControls"]
+custom_minimum_size = Vector2(56, 26)
+layout_mode = 2
+theme_override_font_sizes/font_size = 9
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_normal")
+text = "East"
+
+[node name="BtnWest" type="Button" parent="MainLayout/Columns/RightCol/PreviewCard/Margin/VBox/DirControls"]
+custom_minimum_size = Vector2(56, 26)
+layout_mode = 2
+theme_override_font_sizes/font_size = 9
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_normal")
+text = "West"
+
+[node name="BtnNorth" type="Button" parent="MainLayout/Columns/RightCol/PreviewCard/Margin/VBox/DirControls"]
+custom_minimum_size = Vector2(56, 26)
+layout_mode = 2
+theme_override_font_sizes/font_size = 9
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_normal")
+text = "North"
+
+[node name="StatsGrid" type="GridContainer" parent="MainLayout/Columns/RightCol/PreviewCard/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/h_separation = 12
+theme_override_constants/v_separation = 6
+columns = 2
+
+[node name="HPLabel" type="Label" parent="MainLayout/Columns/RightCol/PreviewCard/Margin/VBox/StatsGrid"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.90, 0.40, 0.45, 1)
+theme_override_font_sizes/font_size = 11
+text = "Health: 90"
+
+[node name="MPLabel" type="Label" parent="MainLayout/Columns/RightCol/PreviewCard/Margin/VBox/StatsGrid"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.35, 0.65, 0.95, 1)
+theme_override_font_sizes/font_size = 11
+text = "Mana: 100"
+
+[node name="StaLabel" type="Label" parent="MainLayout/Columns/RightCol/PreviewCard/Margin/VBox/StatsGrid"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.35, 0.85, 0.50, 1)
+theme_override_font_sizes/font_size = 11
+text = "Stamina: 100"
+
+[node name="SpdLabel" type="Label" parent="MainLayout/Columns/RightCol/PreviewCard/Margin/VBox/StatsGrid"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.92, 0.82, 0.40, 1)
+theme_override_font_sizes/font_size = 11
+text = "Speed: 3 tiles"
+
+[node name="AgiLabel" type="Label" parent="MainLayout/Columns/RightCol/PreviewCard/Margin/VBox/StatsGrid"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.40, 0.80, 0.85, 1)
+theme_override_font_sizes/font_size = 11
+text = "Agility: 28"
+
+[node name="DexLabel" type="Label" parent="MainLayout/Columns/RightCol/PreviewCard/Margin/VBox/StatsGrid"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.85, 0.55, 0.85, 1)
+theme_override_font_sizes/font_size = 11
+text = "Dexterity: 32"
+
+[node name="RolePill" type="PanelContainer" parent="MainLayout/Columns/RightCol/PreviewCard/Margin/VBox"]
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_pill")
+
+[node name="RoleLabel" type="Label" parent="MainLayout/Columns/RightCol/PreviewCard/Margin/VBox/RolePill"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.92, 0.78, 0.35, 1)
+theme_override_font_sizes/font_size = 10
+text = "Archetype: Striker (Aggressive Offense)"
+horizontal_alignment = 1
+
+[node name="BottomBar" type="HBoxContainer" parent="MainLayout"]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+theme_override_constants/separation = 20
+
+[node name="BtnBack" type="Button" parent="MainLayout/BottomBar"]
+custom_minimum_size = Vector2(200, 44)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.80, 0.85, 0.95, 1)
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 12
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_btn_hover")
+text = "Back to Main Menu"
+
+[node name="Spacer" type="Control" parent="MainLayout/BottomBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="BtnStart" type="Button" parent="MainLayout/BottomBar"]
+custom_minimum_size = Vector2(260, 44)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.08, 0.07, 0.05, 1)
+theme_override_colors/font_hover_color = Color(0.08, 0.07, 0.05, 1)
+theme_override_colors/font_pressed_color = Color(0.08, 0.07, 0.05, 1)
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 13
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_start_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_btn_start_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_btn_start_hover")
+text = "Enter the Street Circuit"

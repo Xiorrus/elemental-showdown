@@ -1,0 +1,29 @@
+[gd_scene load_steps=7 format=4 uid="uid://c0rxny63d8oip"]
+
+[ext_resource type="Script" uid="uid://o6n3rmogtdir" path="res://scripts/player.gd" id="1_32lhk"]
+[ext_resource type="Script" uid="uid://bd4smrabrecd8" path="res://scripts/world.gd" id="1_d1c63"]
+[ext_resource type="Texture2D" uid="uid://dujqfj8nryt5y" path="res://icon.svg" id="2_7g83o"]
+[ext_resource type="PackedScene" uid="uid://dt64nbvu8fujh" path="res://scenes/enemy.tscn" id="3_7g83o"]
+[ext_resource type="Script" uid="uid://deauwv7jv0sa5" path="res://scripts/ui.gd" id="5_1lgw5"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_d1c63"]
+size = Vector2(64, 64)
+
+[node name="World" type="Node2D"]
+script = ExtResource("1_d1c63")
+
+[node name="Player" type="CharacterBody2D" parent="."]
+script = ExtResource("1_32lhk")
+
+[node name="Sprite2D" type="Sprite2D" parent="Player"]
+modulate = Color(1, 0, 0, 1)
+texture = ExtResource("2_7g83o")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Player"]
+shape = SubResource("RectangleShape2D_d1c63")
+
+[node name="Enemy" parent="." instance=ExtResource("3_7g83o")]
+position = Vector2(62, 322)
+
+[node name="UI" type="CanvasLayer" parent="."]
+script = ExtResource("5_1lgw5")
