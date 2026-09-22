@@ -906,24 +906,33 @@ func _build_ability_bar():
 		var n_lbl = _label("---", p, Vector2(30, 3), Vector2(AB_W - 36, 16), 10, true)
 		n_lbl.modulate = Color(0.35, 0.40, 0.50)
 
-		var c_lbl = _label("MP: --", p, Vector2(26, 20), Vector2(65, 14), 9)
+		var c_lbl = _label("MP: --", p, Vector2(6, 18), Vector2(75, 14), 9)
 		c_lbl.modulate = Color(0.25, 0.30, 0.40)
 
-		var r_lbl = _label("Rng: --", p, Vector2(96, 20), Vector2(65, 14), 9)
+		var r_lbl = _label("Rng: --", p, Vector2(86, 18), Vector2(85, 14), 9)
 		r_lbl.modulate = Color(0.25, 0.30, 0.40)
-
-		var f_lbl = _label("", p, Vector2(6, 36), Vector2(118, 14), 8)
-		f_lbl.modulate = Color(1.0, 0.82, 0.35)
 
 		var cycle_btn: Button = null
 		if i < 4:
 			cycle_btn = Button.new()
-			cycle_btn.text = "⟳ Form"
-			cycle_btn.size = Vector2(48, 18)
-			cycle_btn.position = Vector2(126, 31)
+			cycle_btn.text = "Form: ---"
+			cycle_btn.size = Vector2(AB_W - 8, 16)
+			cycle_btn.position = Vector2(4, 34)
 			cycle_btn.add_theme_font_size_override("font_size", 8)
 			cycle_btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 			cycle_btn.visible = false
+			var btn_sb = StyleBoxFlat.new()
+			btn_sb.bg_color = Color(0.10, 0.14, 0.22, 0.90)
+			btn_sb.border_color = Color(0.35, 0.45, 0.65, 0.70)
+			btn_sb.set_border_width_all(1)
+			btn_sb.set_corner_radius_all(3)
+			cycle_btn.add_theme_stylebox_override("normal", btn_sb)
+			var btn_sb_h = btn_sb.duplicate()
+			btn_sb_h.bg_color = Color(0.18, 0.24, 0.38, 0.95)
+			btn_sb_h.border_color = Color(1.0, 0.85, 0.35, 0.90)
+			cycle_btn.add_theme_stylebox_override("hover", btn_sb_h)
+			cycle_btn.add_theme_color_override("font_color", Color(1.0, 0.85, 0.40))
+			cycle_btn.add_theme_color_override("font_hover_color", Color(1.0, 1.0, 0.80))
 			var btn_s_idx = i
 			cycle_btn.pressed.connect(func():
 				if _player_ref and _player_ref.has_method("cycle_skill_form"):
@@ -935,14 +944,14 @@ func _build_ability_bar():
 			"name":  n_lbl,
 			"cost":  c_lbl,
 			"range": r_lbl,
-			"form":  f_lbl,
+			"form":  null,
 			"cycle_btn": cycle_btn,
 			"badge": badge
 		})
 
 		var slot_btn = Button.new()
 		slot_btn.flat = true
-		slot_btn.size = Vector2(AB_W, AB_H)
+		slot_btn.size = Vector2(AB_W, 34)
 		slot_btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 		var s_idx = i
 		slot_btn.pressed.connect(func():
@@ -1954,6 +1963,7 @@ func update_abilities(equipped: Array, element_db, player_ref_opt = null):
 					f_lbl.text = "Form: %s" % form_name
 					f_lbl.modulate = Color(1.0, 0.82, 0.35)
 				if c_btn:
+					c_btn.text = "⟳ Form: %s" % form_name
 					c_btn.visible = true
 				slot["panel"].bracket_color = Color(0.45, 0.60, 0.85, 0.85)
 				if badge: badge.modulate = Color(1.0, 0.85, 0.3)

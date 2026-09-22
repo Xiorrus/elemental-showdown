@@ -92,7 +92,8 @@ func _ready():
 	var enemy_sheet = "water"
 
 	if cm and cm.has_active_campaign:
-		player_elem = cm.player_element
+		player_elem = cm.player_element.to_lower().strip_edges()
+		if player_elem == "wind": player_elem = "air"
 		player_display_name = cm.player_name
 		player_sheet = cm.appearance.get("sheet_prefix", cm.player_element)
 		enemy_elem = cm.active_enemy_element if cm.active_enemy_element != "" else "water"
@@ -321,6 +322,7 @@ func _ready():
 		player.base_speed = cm.player_speed
 		player.agility = cm.player_agility
 		player.dexterity = cm.player_dexterity
+		player.defense = cm.player_defense
 		player.max_stamina = cm.player_stamina
 		player.stamina = player.max_stamina
 		player.max_mp = cm.player_mana

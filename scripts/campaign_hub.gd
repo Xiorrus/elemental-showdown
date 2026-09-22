@@ -1472,7 +1472,7 @@ func _render_cultivation_tree():
 		skill_tree_canvas.name = "SkillTreeCanvas"
 		skill_tree_canvas.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		skill_tree_canvas.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		skill_tree_canvas.custom_minimum_size = Vector2(0, 680)
+		skill_tree_canvas.custom_minimum_size = Vector2(0, 480)
 		lib_col.add_child(skill_tree_canvas)
 		skill_tree_canvas.skill_unlocked.connect(func(_sk):
 			_render_cultivation_top_bar()

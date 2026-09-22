@@ -216,6 +216,12 @@ func _on_start_campaign():
 		})
 		cm.equipped_abilities = equipped.duplicate()
 		cm.unlocked_abilities = equipped.duplicate()
+		var edata = _get_element_data()
+		for sk in equipped:
+			var f_keys = edata.get_skill_form_keys(sk) if edata else []
+			var first_f = f_keys[0] if not f_keys.is_empty() else "form_1"
+			cm.unlocked_skill_forms[sk] = [first_f]
+			cm.skill_variations[sk] = first_f
 		cm.save_campaign()
 
 	get_tree().change_scene_to_file("res://scenes/CampaignHub.tscn")

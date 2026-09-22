@@ -159,17 +159,18 @@ func _build_nav_bar():
 	nav_bar.anchor_left = 0.0
 	nav_bar.anchor_top = 0.0
 	nav_bar.anchor_right = 1.0
-	nav_bar.offset_left = 16
+	nav_bar.offset_left = 12
 	nav_bar.offset_top = 10
-	nav_bar.offset_right = -356   # Leave room for inspector on right
-	nav_bar.offset_bottom = 44
-	nav_bar.add_theme_constant_override("separation", 10)
+	nav_bar.offset_right = -318   # Leave room for inspector on right
+	nav_bar.offset_bottom = 42
+	nav_bar.add_theme_constant_override("separation", 6)
 	add_child(nav_bar)
 
 	# Back button (visible when focused)
 	btn_back = Button.new()
 	btn_back.text = "Back to Disciplines"
-	btn_back.custom_minimum_size = Vector2(160, 32)
+	btn_back.custom_minimum_size = Vector2(130, 28)
+	btn_back.add_theme_font_size_override("font_size", 9)
 	btn_back.visible = false
 	_style_nav_button(btn_back, Color(0.12, 0.16, 0.24, 0.95), UITheme.BORDER_GOLD, UITheme.GOLD_PRIMARY)
 	btn_back.pressed.connect(collapse_to_mandala)
@@ -177,8 +178,9 @@ func _build_nav_bar():
 
 	# Reset View button
 	var btn_reset = Button.new()
-	btn_reset.text = "Reset View"
-	btn_reset.custom_minimum_size = Vector2(90, 32)
+	btn_reset.text = "Reset"
+	btn_reset.custom_minimum_size = Vector2(68, 28)
+	btn_reset.add_theme_font_size_override("font_size", 9)
 	_style_nav_button(btn_reset, Color(0.08, 0.10, 0.16, 0.9), UITheme.BORDER_SUBTLE, UITheme.TEXT_SECONDARY)
 	btn_reset.pressed.connect(reset_view)
 	nav_bar.add_child(btn_reset)
@@ -186,7 +188,8 @@ func _build_nav_bar():
 	# Fit Tree button
 	var btn_fit = Button.new()
 	btn_fit.text = "Fit Tree"
-	btn_fit.custom_minimum_size = Vector2(80, 32)
+	btn_fit.custom_minimum_size = Vector2(68, 28)
+	btn_fit.add_theme_font_size_override("font_size", 9)
 	_style_nav_button(btn_fit, Color(0.08, 0.10, 0.16, 0.9), UITheme.BORDER_SUBTLE, UITheme.TEXT_SECONDARY)
 	btn_fit.pressed.connect(fit_tree)
 	nav_bar.add_child(btn_fit)
@@ -194,23 +197,25 @@ func _build_nav_bar():
 	# Zoom controls
 	var btn_zoom_out = Button.new()
 	btn_zoom_out.text = "-"
-	btn_zoom_out.custom_minimum_size = Vector2(32, 32)
+	btn_zoom_out.custom_minimum_size = Vector2(26, 28)
+	btn_zoom_out.add_theme_font_size_override("font_size", 10)
 	_style_nav_button(btn_zoom_out, Color(0.08, 0.10, 0.16, 0.9), UITheme.BORDER_SUBTLE, UITheme.TEXT_PRIMARY)
 	btn_zoom_out.pressed.connect(func(): _adjust_zoom(-0.15, size * 0.5))
 	nav_bar.add_child(btn_zoom_out)
 
 	zoom_lbl = Label.new()
 	zoom_lbl.text = "85%"
-	zoom_lbl.custom_minimum_size = Vector2(50, 32)
+	zoom_lbl.custom_minimum_size = Vector2(40, 28)
 	zoom_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	zoom_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	zoom_lbl.add_theme_font_size_override("font_size", 10)
+	zoom_lbl.add_theme_font_size_override("font_size", 9)
 	zoom_lbl.modulate = UITheme.TEXT_SECONDARY
 	nav_bar.add_child(zoom_lbl)
 
 	var btn_zoom_in = Button.new()
 	btn_zoom_in.text = "+"
-	btn_zoom_in.custom_minimum_size = Vector2(32, 32)
+	btn_zoom_in.custom_minimum_size = Vector2(26, 28)
+	btn_zoom_in.add_theme_font_size_override("font_size", 10)
 	_style_nav_button(btn_zoom_in, Color(0.08, 0.10, 0.16, 0.9), UITheme.BORDER_SUBTLE, UITheme.TEXT_PRIMARY)
 	btn_zoom_in.pressed.connect(func(): _adjust_zoom(0.15, size * 0.5))
 	nav_bar.add_child(btn_zoom_in)
@@ -223,10 +228,10 @@ func _build_nav_bar():
 	# Available SP Badge
 	sp_badge = Label.new()
 	sp_badge.text = "Available: 0 SP"
-	sp_badge.custom_minimum_size = Vector2(140, 32)
+	sp_badge.custom_minimum_size = Vector2(110, 28)
 	sp_badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	sp_badge.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	sp_badge.add_theme_font_size_override("font_size", 10)
+	sp_badge.add_theme_font_size_override("font_size", 9)
 	if cinzel_font:
 		sp_badge.add_theme_font_override("font", cinzel_font)
 	sp_badge.modulate = UITheme.GOLD_PRIMARY
@@ -237,7 +242,7 @@ func _build_nav_bar():
 	sb.border_width_right = 1
 	sb.border_width_bottom = 1
 	sb.border_color = UITheme.BORDER_GOLD
-	sb.set_corner_radius_all(16)
+	sb.set_corner_radius_all(14)
 	sp_badge.add_theme_stylebox_override("normal", sb)
 	nav_bar.add_child(sp_badge)
 
@@ -248,11 +253,12 @@ func _build_inspector_panel():
 	inspector_panel.anchor_top = 0.0
 	inspector_panel.anchor_right = 1.0
 	inspector_panel.anchor_bottom = 1.0
-	inspector_panel.offset_left = -344
+	inspector_panel.offset_left = -310
 	inspector_panel.offset_top = 10
-	inspector_panel.offset_right = -12
-	inspector_panel.offset_bottom = -12
-	inspector_panel.custom_minimum_size = Vector2(332, 0)
+	inspector_panel.offset_right = -8
+	inspector_panel.offset_bottom = -10
+	inspector_panel.custom_minimum_size = Vector2(300, 0)
+	inspector_panel.clip_contents = true
 
 	var sb = StyleBoxFlat.new()
 	sb.bg_color = Color(0.05, 0.07, 0.11, 0.96)
@@ -262,10 +268,10 @@ func _build_inspector_panel():
 	sb.border_width_bottom = 1
 	sb.border_color = UITheme.BORDER_SUBTLE
 	sb.set_corner_radius_all(6)
-	sb.content_margin_left = 14
-	sb.content_margin_right = 14
-	sb.content_margin_top = 14
-	sb.content_margin_bottom = 14
+	sb.content_margin_left = 12
+	sb.content_margin_right = 12
+	sb.content_margin_top = 10
+	sb.content_margin_bottom = 10
 	inspector_panel.add_theme_stylebox_override("panel", sb)
 
 	var scroll = ScrollContainer.new()
@@ -273,12 +279,15 @@ func _build_inspector_panel():
 	scroll.set_anchors_preset(Control.PRESET_FULL_RECT)
 	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	scroll.clip_contents = true
 	inspector_panel.add_child(scroll)
 
 	inspector_vbox = VBoxContainer.new()
 	inspector_vbox.name = "InspectorVBox"
 	inspector_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	inspector_vbox.add_theme_constant_override("separation", 10)
+	inspector_vbox.add_theme_constant_override("separation", 8)
 	scroll.add_child(inspector_vbox)
 
 	add_child(inspector_panel)

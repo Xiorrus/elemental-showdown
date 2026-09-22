@@ -85,7 +85,7 @@ func register_elemental_action(caster: Node2D, element_key: String, target: Node
 	if elem.is_empty():
 		return {}
 
-	var reaction = check_elemental_fusion(elem, target)
+	var reaction = check_elemental_fusion(elem, target, caster)
 	recent_elemental_actions.append({"caster": caster, "element": elem, "target": target})
 	if recent_elemental_actions.size() > 6:
 		recent_elemental_actions.pop_front()
@@ -107,14 +107,54 @@ func register_elemental_action(caster: Node2D, element_key: String, target: Node
 
 	return reaction
 
-func check_elemental_fusion(new_elem: String, target: Node2D) -> Dictionary:
+func _is_ally_unit(unit: Node2D) -> bool:
+	if unit == null or not is_instance_valid(unit):
+		return false
+	if unit.is_in_group("players"):
+		return true
+	if unit.name == "Player" or unit.name.begins_with("Ally"):
+		return true
+	return false
+
+func _is_enemy_unit(unit: Node2D) -> bool:
+	if unit == null or not is_instance_valid(unit):
+		return false
+	if unit.is_in_group("enemies"):
+		return true
+	if unit.name == "Enemy" or unit.name.begins_with("Enemy"):
+		return true
+	return false
+
+func check_elemental_fusion(new_elem: String, target: Node2D, cur_caster: Node2D = null) -> Dictionary:
 	if recent_elemental_actions.is_empty():
 		return {}
 
 	var last_action = recent_elemental_actions.back()
 	var prev_elem = last_action.get("element", "")
+	var prev_caster = last_action.get("caster", null)
+	var prev_target = last_action.get("target", null)
+
 	if prev_elem.is_empty() or prev_elem == new_elem:
 		return {}
+
+	# Rule: Elemental fusion should ONLY happen if:
+	# 1. Two ally characters attack one enemy character
+	# 2. OR two enemy characters attack one ally character
+	# It must NOT trigger when an ally and enemy attack each other or attack different targets.
+	if target == null or prev_target == null or target != prev_target:
+		return {}
+
+	if cur_caster != null and prev_caster != null:
+		var cur_is_ally = _is_ally_unit(cur_caster)
+		var prev_is_ally = _is_ally_unit(prev_caster)
+		var target_is_enemy = _is_enemy_unit(target)
+		var target_is_ally = _is_ally_unit(target)
+
+		var ally_combo = (cur_is_ally and prev_is_ally and target_is_enemy)
+		var enemy_combo = (!cur_is_ally and !prev_is_ally and target_is_ally)
+
+		if not (ally_combo or enemy_combo):
+			return {}
 
 	var edata = get_node_or_null("/root/ElementData")
 	var fusion_info = edata.get_fusion_info(prev_elem, new_elem) if edata else {}

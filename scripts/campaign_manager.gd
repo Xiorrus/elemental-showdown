@@ -339,8 +339,10 @@ func init_new_campaign(p_name_or_cfg = null, p_elem = null, t_name: String = "",
 		is_solo = false
 
 	player_name = p_name
-	player_element = p_elem_str
-	unlocked_elements = [player_element.to_lower()]
+	var raw_elem = p_elem_str.to_lower().strip_edges()
+	if raw_elem == "wind": raw_elem = "air"
+	player_element = raw_elem
+	unlocked_elements = [player_element]
 
 	if app_cfg:
 		appearance = app_cfg.duplicate(true)
@@ -381,9 +383,9 @@ func init_new_campaign(p_name_or_cfg = null, p_elem = null, t_name: String = "",
 	campaign_day = 1
 
 	var starter_skill = "Combustion"
-	if player_element == "water": starter_skill = "Ice"
-	elif player_element == "earth": starter_skill = "Metal"
-	elif player_element == "air": starter_skill = "Wind"
+	if player_element == "water": starter_skill = "Aqua_Mend"
+	elif player_element == "earth": starter_skill = "Stone_Plating"
+	elif player_element == "air": starter_skill = "Gale_Step"
 
 	equipped_abilities = [starter_skill]
 	unlocked_abilities = [starter_skill]
@@ -686,6 +688,7 @@ func save_campaign() -> bool:
 		"player_stamina": player_stamina,
 		"player_mana": player_mana,
 		"player_potency": player_potency,
+		"player_defense": player_defense,
 		"unspent_stat_points": unspent_stat_points,
 		"unspent_skill_points": unspent_skill_points,
 		"active_match_format": active_match_format,
@@ -768,7 +771,9 @@ func load_campaign() -> bool:
 
 	has_active_campaign = data.get("has_active_campaign", true)
 	player_name = data.get("player_name", "Ignis")
-	player_element = data.get("player_element", "fire")
+	var raw_elem = str(data.get("player_element", "fire")).to_lower().strip_edges()
+	if raw_elem == "wind": raw_elem = "air"
+	player_element = raw_elem
 	player_level = data.get("player_level", 1)
 	player_xp = data.get("player_xp", 0)
 	player_xp_to_next = data.get("player_xp_to_next", 100)
@@ -779,6 +784,7 @@ func load_campaign() -> bool:
 	var def_dex = 32
 	var def_sta = 100
 	var def_mana = 100
+	var def_def = 20
 	if edata_node and edata_node.ELEMENTS.has(player_element):
 		var p_b = edata_node.ELEMENTS[player_element]
 		def_spd = p_b.get("base_speed", 3)
@@ -786,13 +792,15 @@ func load_campaign() -> bool:
 		def_dex = p_b.get("base_dexterity", 32)
 		def_sta = p_b.get("base_stamina", 100)
 		def_mana = p_b.get("base_mp", 100)
+		def_def = p_b.get("base_defense", 20)
 
-	player_speed = data.get("player_speed", def_spd)
-	player_agility = data.get("player_agility", def_agi)
-	player_dexterity = data.get("player_dexterity", def_dex)
-	player_stamina = data.get("player_stamina", def_sta)
-	player_mana = data.get("player_mana", def_mana)
+	player_speed = max(def_spd, data.get("player_speed", def_spd))
+	player_agility = max(def_agi, data.get("player_agility", def_agi))
+	player_dexterity = max(def_dex, data.get("player_dexterity", def_dex))
+	player_stamina = max(def_sta, data.get("player_stamina", def_sta))
+	player_mana = max(def_mana, data.get("player_mana", def_mana))
 	player_potency = data.get("player_potency", 30)
+	player_defense = max(def_def, data.get("player_defense", def_def))
 	unspent_stat_points = data.get("unspent_stat_points", 0)
 	unspent_skill_points = data.get("unspent_skill_points", 0)
 	active_match_format = data.get("active_match_format", "3v3")
@@ -861,8 +869,11 @@ func load_campaign() -> bool:
 				var f_keys = edata_load.get_skill_form_keys(ab_k)
 				if not f_keys.is_empty():
 					unlocked_skill_forms[ab_k] = [f_keys[0]]
-					if not skill_variations.has(ab_k) or skill_variations[ab_k] == "Base" or skill_variations[ab_k] == "":
-						skill_variations[ab_k] = f_keys[0]
+			var u_forms = unlocked_skill_forms.get(ab_k, [])
+			var cur_var = skill_variations.get(ab_k, "")
+			# Strictly ensure active skill variation is an unlocked form! If locked or empty, reset to Form 1
+			if not u_forms.is_empty() and (cur_var == "" or cur_var == "Base" or not u_forms.has(cur_var)):
+				skill_variations[ab_k] = u_forms[0]
 	league_tier = data.get("league_tier", 1)
 	street_wins = data.get("street_wins", 0)
 	has_team = data.get("has_team", false)
@@ -889,14 +900,17 @@ func spend_stat_point(stat_name: String) -> bool:
 		"defense": player_defense += 2
 		_: return false
 	unspent_stat_points -= 1
+	save_campaign()
 	print("[CampaignManager] Spent stat point on %s. Remaining: %d" % [stat_name, unspent_stat_points])
 	return true
 
 func revert_stat_point(stat_name: String) -> bool:
 	var edata = null
 	var edata_node = _get_element_data()
-	if edata_node and edata_node.ELEMENTS.has(player_element):
-		edata = edata_node.ELEMENTS[player_element]
+	var norm_elem = player_element.to_lower()
+	if norm_elem == "wind": norm_elem = "air"
+	if edata_node and edata_node.ELEMENTS.has(norm_elem):
+		edata = edata_node.ELEMENTS[norm_elem]
 
 	var floor_speed = edata.get("base_speed", 3) if edata else 3
 	var floor_agility = edata.get("base_agility", 28) if edata else 28
@@ -930,6 +944,7 @@ func revert_stat_point(stat_name: String) -> bool:
 			player_defense -= 2
 		_: return false
 	unspent_stat_points += 1
+	save_campaign()
 	print("[CampaignManager] Reverted stat point on %s. Remaining: %d" % [stat_name, unspent_stat_points])
 	return true
 
