@@ -1089,11 +1089,13 @@ func _render_cultivation_overview():
 	var min_stamina = p_base.get("base_stamina", 100)
 	var min_mana = p_base.get("base_mp", 100)
 	var min_potency = 30
+	var min_defense = p_base.get("base_defense", 20)
 
 	var stats_list = [
 		{"key": "Speed", "val": cm.player_speed, "min": min_speed, "step": 1},
 		{"key": "Agility", "val": cm.player_agility, "min": min_agility, "step": 2},
 		{"key": "Dexterity", "val": cm.player_dexterity, "min": min_dexterity, "step": 2},
+		{"key": "Defense", "val": cm.player_defense, "min": min_defense, "step": 2},
 		{"key": "Stamina", "val": cm.player_stamina, "min": min_stamina, "step": 10},
 		{"key": "Mana", "val": cm.player_mana, "min": min_mana, "step": 10},
 		{"key": "Potency", "val": cm.player_potency, "min": min_potency, "step": 3}
@@ -1274,12 +1276,15 @@ func _render_cultivation_overview():
 	var strike_bonus = int((cm.player_potency - 30) * 1.5)
 	var crit_bonus = int((cm.player_dexterity - 32) * 1.2)
 	var eva_bonus = int((cm.player_agility - 28) * 1.0)
+	var def_val = cm.player_defense if ("player_defense" in cm) else 20
+	var def_reduction = int(def_val * 0.5)
 	var p_hp = 90 + (cm.player_level - 1) * 10
 
 	var rating_cards = [
 		{"label": "Strike Potency", "val": "%d Potency (+%d%% Dmg)" % [cm.player_potency, strike_bonus], "sub": "Elemental ability scalar"},
 		{"label": "Kinetic Agility", "val": "%d Agility (+%d%% Eva)" % [cm.player_agility, eva_bonus], "sub": "Turn frequency & dodging"},
 		{"label": "Combat Dexterity", "val": "%d Dexterity (+%d%% Crit)" % [cm.player_dexterity, crit_bonus], "sub": "Critical precision"},
+		{"label": "Fortified Armor", "val": "%d DEF (-%d%% Dmg)" % [def_val, def_reduction], "sub": "Incoming damage reduction"},
 		{"label": "Tactical Mobility", "val": "%d Tiles / Turn" % cm.player_speed, "sub": "Arena grid range"},
 		{"label": "Vitality Reserves", "val": "%d HP  |  %d STA" % [p_hp, cm.player_stamina], "sub": "Physical endurance pool"},
 		{"label": "Aether Reservoir", "val": "%d MP" % cm.player_mana, "sub": "Technique channeling"}
@@ -3248,6 +3253,7 @@ func _get_player_roster_data() -> Dictionary:
 	var p_spd = cm.player_speed if cm else 3
 	var p_agi = cm.player_agility if cm else 28
 	var p_dex = cm.player_dexterity if cm else 32
+	var p_def = cm.player_defense if cm else 20
 	var p_pot = cm.player_potency if cm else 30
 	return {
 		"name": cm.player_name if cm else "Player",
@@ -3257,7 +3263,7 @@ func _get_player_roster_data() -> Dictionary:
 		"level": p_lvl,
 		"league_tier": cm.league_tier if cm else 1,
 		"base_stats": {
-			"hp": p_hp, "mp": p_mana, "stamina": p_sta, "speed": p_spd, "agility": p_agi, "dexterity": p_dex
+			"hp": p_hp, "mp": p_mana, "stamina": p_sta, "speed": p_spd, "agility": p_agi, "dexterity": p_dex, "defense": p_def
 		},
 		"hp": p_hp,
 		"mana": p_mana,
@@ -3265,6 +3271,7 @@ func _get_player_roster_data() -> Dictionary:
 		"speed": p_spd,
 		"agility": p_agi,
 		"dexterity": p_dex,
+		"defense": p_def,
 		"potency": p_pot,
 		"potential": 85,
 		"status": "Active",
@@ -3692,6 +3699,7 @@ func _refresh_team_tab():
 			var s_spd = sel_ally.get("speed", b_stats.get("speed", 3))
 			var s_agi = sel_ally.get("agility", b_stats.get("agility", 28))
 			var s_dex = sel_ally.get("dexterity", b_stats.get("dexterity", 32))
+			var s_def = sel_ally.get("defense", b_stats.get("defense", 20))
 			var s_pot_stat = sel_ally.get("potency", 30)
 
 			var stats_grid = GridContainer.new()
@@ -3705,10 +3713,10 @@ func _refresh_team_tab():
 				{"name": "Mana", "val": "%d MP" % s_mp, "col": Color(0.35, 0.65, 0.95)},
 				{"name": "Stamina", "val": "%d STA" % s_sta, "col": Color(0.35, 0.85, 0.50)},
 				{"name": "Speed", "val": "%d Tiles" % s_spd, "col": Color(0.92, 0.82, 0.40)},
+				{"name": "Defense", "val": "%d DEF" % s_def, "col": Color(0.70, 0.85, 0.55)},
 				{"name": "Agility", "val": "%d EVA" % s_agi, "col": Color(0.40, 0.85, 0.80)},
 				{"name": "Dexterity", "val": "%d CRT" % s_dex, "col": Color(0.85, 0.55, 0.90)},
-				{"name": "Potency", "val": "%d ATK" % s_pot_stat, "col": Color(0.95, 0.65, 0.30)},
-				{"name": "Competitive Tier", "val": "Tier %d" % sel_tier, "col": Color(0.85, 0.72, 0.35)}
+				{"name": "Potency", "val": "%d ATK" % s_pot_stat, "col": Color(0.95, 0.65, 0.30)}
 			]
 
 			for att in attr_entries:

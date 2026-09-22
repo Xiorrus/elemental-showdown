@@ -77,6 +77,7 @@ var player_dexterity: int = 32
 var player_stamina: int = 100
 var player_mana: int = 100
 var player_potency: int = 30
+var player_defense: int = 20
 var unspent_stat_points: int = 5
 var unspent_skill_points: int = 2
 var active_match_format: String = "3v3"
@@ -364,6 +365,7 @@ func init_new_campaign(p_name_or_cfg = null, p_elem = null, t_name: String = "",
 	player_stamina = p_base.get("base_stamina", 100)
 	player_mana = p_base.get("base_mp", 100)
 	player_potency = 30
+	player_defense = p_base.get("base_defense", 20)
 	energy = 100
 	is_fatigued = false
 	bench_risk = false
@@ -884,6 +886,7 @@ func spend_stat_point(stat_name: String) -> bool:
 		"stamina": player_stamina += 10
 		"mana": player_mana += 10
 		"potency": player_potency += 3
+		"defense": player_defense += 2
 		_: return false
 	unspent_stat_points -= 1
 	print("[CampaignManager] Spent stat point on %s. Remaining: %d" % [stat_name, unspent_stat_points])
@@ -901,6 +904,7 @@ func revert_stat_point(stat_name: String) -> bool:
 	var floor_stamina = edata.get("base_stamina", 100) if edata else 100
 	var floor_mana = edata.get("base_mp", 100) if edata else 100
 	var floor_potency = 30
+	var floor_defense = edata.get("base_defense", 20) if edata else 20
 
 	match stat_name.to_lower():
 		"speed":
@@ -921,6 +925,9 @@ func revert_stat_point(stat_name: String) -> bool:
 		"potency":
 			if player_potency <= floor_potency: return false
 			player_potency -= 3
+		"defense":
+			if player_defense <= floor_defense: return false
+			player_defense -= 2
 		_: return false
 	unspent_stat_points += 1
 	print("[CampaignManager] Reverted stat point on %s. Remaining: %d" % [stat_name, unspent_stat_points])

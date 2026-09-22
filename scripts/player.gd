@@ -24,6 +24,7 @@ var stamina: int = 100
 var max_stamina: int = 100
 var agility: int = 28
 var dexterity: int = 32
+var defense: int = 20
 var base_speed: int = 3
 var element_speed_bonus: int = 0
 var ability_speed_bonus: int = 0
@@ -148,6 +149,7 @@ func apply_element_stats(elem: String = ""):
 		max_stamina  = edata.get("base_stamina", 100)
 		agility      = edata.get("base_agility", 28)
 		dexterity    = edata.get("base_dexterity", 32)
+		defense      = edata.get("base_defense", 20)
 		hp           = max_hp
 		mp           = max_mp
 		stamina      = max_stamina
@@ -421,7 +423,55 @@ func apply_distance_falloff(base_damage: float, distance: int, optimal_range: in
 		return base_damage * clamp(1.0 - falloff, 0.20, 1.0)
 	return base_damage
 
-func take_damage(amount: int, attacker_pos: Vector2 = Vector2.ZERO, attacker_dex: int = 20, skill_acc: int = 90, is_unavoidable: bool = false):
+func apply_knockback(source_pos: Vector2, distance_tiles: int = 1) -> bool:
+	var diff = position - source_pos
+	var dir_x = 0
+	var dir_y = 0
+	if abs(diff.x) >= abs(diff.y):
+		dir_x = 1 if diff.x >= 0 else -1
+	else:
+		dir_y = 1 if diff.y >= 0 else -1
+
+	var cur_col = int(floor(position.x / TILE_SIZE))
+	var cur_row = int(floor(position.y / TILE_SIZE))
+	var target_col = cur_col + (dir_x * distance_tiles)
+	var target_row = cur_row + (dir_y * distance_tiles)
+
+	var hit_wall = (target_col < 0 or target_col >= 18 or target_row < 0 or target_row >= 10)
+	var hit_obstacle = false
+	if not hit_wall and is_inside_tree():
+		for group in ["players", "enemies"]:
+			for node in get_tree().get_nodes_in_group(group):
+				if is_instance_valid(node) and node != self and ("hp" not in node or node.hp > 0):
+					var nc = int(floor(node.position.x / TILE_SIZE))
+					var nr = int(floor(node.position.y / TILE_SIZE))
+					if nc == target_col and nr == target_row:
+						hit_obstacle = true
+						break
+
+	if hit_wall or hit_obstacle:
+		print("[Player] Knocked into wall/obstacle at (%d, %d)! Collision shock!" % [target_col, target_row])
+		if ui and ui.has_method("spawn_damage_popup"):
+			ui.spawn_damage_popup(position, "COLLISION SHOCK! (+12)", "damage")
+		if ui and ui.has_method("log_action"):
+			ui.log_action("💥 [Player] Collided with obstacle! Took 12 collision damage!")
+		take_damage(12, Vector2.ZERO, 30, 100, true)
+		if sprite:
+			var tw = create_tween()
+			tw.tween_property(sprite, "position", Vector2(dir_x * 8, dir_y * 8), 0.05)
+			tw.tween_property(sprite, "position", Vector2.ZERO, 0.05)
+		return false
+	else:
+		var new_pos = Vector2(target_col * TILE_SIZE + TILE_SIZE / 2, target_row * TILE_SIZE + TILE_SIZE / 2)
+		var tw = create_tween()
+		tw.tween_property(self, "position", new_pos, 0.15).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		print("[Player] Knocked back to (%d, %d)" % [target_col, target_row])
+		return true
+
+func take_damage(amount: int, attacker_pos: Vector2 = Vector2.ZERO, attacker_dex: int = 20, skill_acc: int = 90, is_unavoidable: bool = false, attacker_node: Node2D = null, skill_elem: String = ""):
+	var final_amount = amount
+	var hit_angle = "front"
+
 	if not is_unavoidable and attacker_pos != Vector2.ZERO:
 		var res = calculate_directional_hit(attacker_pos, attacker_dex, skill_acc)
 		if not res["is_hit"]:
@@ -429,8 +479,44 @@ func take_damage(amount: int, attacker_pos: Vector2 = Vector2.ZERO, attacker_dex
 			if ui and ui.has_method("spawn_damage_popup"):
 				ui.spawn_damage_popup(position, "EVADED [%s]" % res["angle"].to_upper(), "status")
 			return 0
+		hit_angle = res["angle"]
 
-	var final_amount = amount
+	# Directional Critical & Braced Block / Riposte
+	if hit_angle == "rear":
+		final_amount = int(round(final_amount * 1.35))
+		if ui and ui.has_method("spawn_damage_popup"):
+			ui.spawn_damage_popup(position, "CRITICAL BACKSTAB! (+35%)", "status")
+	elif hit_angle == "front" and is_braced_guard:
+		final_amount = int(round(final_amount * 0.65))
+		if ui and ui.has_method("spawn_damage_popup"):
+			ui.spawn_damage_popup(position, "BRACED BLOCK (-35%)", "status")
+		if attacker_node != null and is_instance_valid(attacker_node) and attacker_node.has_method("take_damage"):
+			var dist_to_atk = (abs(attacker_node.position.x - position.x) + abs(attacker_node.position.y - position.y)) / TILE_SIZE
+			if dist_to_atk <= 1.5:
+				print("[Player] Riposte counter against %s!" % attacker_node.name)
+				if ui and ui.has_method("spawn_damage_popup"):
+					ui.spawn_damage_popup(attacker_node.position, "RIPOSTE COUNTER!", "status")
+				if ui and ui.has_method("log_action"):
+					ui.log_action("⚔️ [Player] Braced Guard ripostes %s for 15 dmg!" % attacker_node.name)
+				attacker_node.take_damage(15, Vector2.ZERO, 30, 100, true)
+
+	# Elemental Affinity & Weakness Exploitation
+	if skill_elem != "" and element_db and element_db.has_method("get_elemental_multiplier"):
+		var mult = element_db.get_elemental_multiplier(skill_elem, element)
+		if mult > 1.0:
+			final_amount = int(round(final_amount * mult))
+			if ui and ui.has_method("spawn_damage_popup"):
+				ui.spawn_damage_popup(position, "WEAKNESS HIT! (+25%)", "status")
+		elif mult < 1.0:
+			final_amount = int(round(final_amount * mult))
+			if ui and ui.has_method("spawn_damage_popup"):
+				ui.spawn_damage_popup(position, "RESISTED (-15%)", "status")
+
+	# Defense stat damage reduction (e.g. 30 defense = -15% damage taken)
+	var def_factor = clamp(1.0 - (float(defense) * 0.005), 0.70, 1.0)
+	final_amount = int(round(final_amount * def_factor))
+	final_amount = max(1, final_amount)
+
 	hp -= final_amount
 	hp = max(hp, 0)
 	print("[Player] Took %d damage → HP: %d/%d" % [final_amount, hp, max_hp])
@@ -440,10 +526,14 @@ func take_damage(amount: int, attacker_pos: Vector2 = Vector2.ZERO, attacker_dex
 		var rest_color = Color(0.55, 0.55, 0.55, 1.0) if has_acted else Color.WHITE
 		tw.tween_property(sprite, "modulate", rest_color, 0.08)
 	if ui and ui.has_method("spawn_damage_popup"):
-		ui.spawn_damage_popup(position, final_amount, "damage")
+		ui.spawn_damage_popup(position, final_amount, "damage", skill_elem)
 	if ui:
 		ui.update_player_stats(hp, max_hp, mp, max_mp, stamina, max_stamina)
 	if hp <= 0:
+		if ui and ui.has_method("trigger_screen_shake"):
+			ui.trigger_screen_shake(12.0, 0.35)
+		if ui and ui.has_method("trigger_hit_stop"):
+			ui.trigger_hit_stop(60.0)
 		if battle_manager and battle_manager.has_method("record_knockout"):
 			battle_manager.record_knockout(self)
 		_on_defeated()
@@ -850,8 +940,18 @@ func _execute_ability(ability: Dictionary, target: Node2D = null):
 		var falloff = ability.get("falloff_per_tile", 0.08) * (distance - 2)
 		damage = int(round(damage * clamp(1.0 - falloff, 0.40, 1.0)))
 
+	# Resonance Gauge Buff (+20% damage if gauge was full)
+	var resonance_active = false
+	if battle_manager and battle_manager.has_method("consume_resonance_buff"):
+		resonance_active = battle_manager.consume_resonance_buff()
+	if resonance_active and damage > 0:
+		damage = int(round(damage * 1.20))
+		if ui and ui.has_method("log_action"):
+			ui.log_action("⚡ RESONANCE BURST! +20% Damage!")
+
+	var ab_elem = ability.get("element", element)
 	if damage > 0:
-		enemy.take_damage(damage, position, dexterity, ability.get("accuracy", 90))
+		enemy.take_damage(damage, position, dexterity, ability.get("accuracy", 90), false, self, ab_elem)
 	elif damage < 0:
 		# Negative damage = heal (e.g. Rejuvenation or Aqua Mend)
 		heal(abs(damage))
@@ -859,6 +959,12 @@ func _execute_ability(ability: Dictionary, target: Node2D = null):
 	# Apply secondary effect
 	if effect != "" and effect != "heal" and enemy.has_method("apply_status"):
 		enemy.apply_status(effect, 2, 0.0)
+	if effect == "knockback" and enemy.has_method("apply_knockback"):
+		enemy.apply_knockback(position, 1)
+
+	# Register elemental action for Resonance & Fusion
+	if battle_manager and battle_manager.has_method("register_elemental_action"):
+		battle_manager.register_elemental_action(self, ab_elem, enemy)
 
 	print("[Player] Used: %s | Dmg: %d | Effect: %s | MP: %d/%d" % [ability["name"], damage, effect, mp, max_mp])
 	if ui:

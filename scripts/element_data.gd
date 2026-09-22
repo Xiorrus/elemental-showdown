@@ -33,7 +33,7 @@ const ABILITIES = {
 	# ── FIRE ──────────────────────────────────────────────────────────────────
 	"Combustion": {
 		"name": "Combustion", "element": "fire",
-		"damage": 35, "mp_cost": 10, "range": 2, "accuracy": 92,
+		"damage": 34, "mp_cost": 11, "range": 2, "accuracy": 92,
 		"effect": "burn", "tier": "basic", "falloff_per_tile": 0.10,
 		"forms": {
 			"punch": {"name": "Explosive Punch", "range": 1, "dmg_mult": 1.20, "mp_mult": 0.85, "shape": "cardinal", "desc": "Melee 1-box kinetic blast"},
@@ -44,7 +44,7 @@ const ABILITIES = {
 	},
 	"Lightning": {
 		"name": "Lightning", "element": "fire",
-		"damage": 45, "mp_cost": 20, "range": 3, "accuracy": 90,
+		"damage": 38, "mp_cost": 16, "range": 3, "accuracy": 88,
 		"effect": "stun", "tier": "basic", "falloff_per_tile": 0.08,
 		"forms": {
 			"shock_palm": {"name": "Shock Palm", "range": 1, "dmg_mult": 1.15, "mp_mult": 0.85, "shape": "cardinal", "desc": "Touch-range neural overload"},
@@ -55,7 +55,7 @@ const ABILITIES = {
 	},
 	"Laser": {
 		"name": "Laser", "element": "fire",
-		"damage": 40, "mp_cost": 15, "range": 5, "accuracy": 98,
+		"damage": 36, "mp_cost": 13, "range": 5, "accuracy": 96,
 		"effect": "", "tier": "basic", "falloff_per_tile": 0.04,
 		"forms": {
 			"needle": {"name": "Needle Beam", "range": 5, "dmg_mult": 1.00, "mp_mult": 1.00, "shape": "linear_front", "desc": "Pinpoint sniper beam"},
@@ -66,7 +66,7 @@ const ABILITIES = {
 	},
 	"Plasma": {
 		"name": "Plasma", "element": "fire",
-		"damage": 60, "mp_cost": 28, "range": 2, "accuracy": 88,
+		"damage": 56, "mp_cost": 24, "range": 2, "accuracy": 88,
 		"effect": "melt", "tier": "advanced", "falloff_per_tile": 0.12,
 		"forms": {
 			"plasma_lance": {"name": "Plasma Lance", "range": 2, "dmg_mult": 1.15, "mp_mult": 0.90, "shape": "linear_front", "desc": "Piercing ionized thermal spike that melts armor"},
@@ -77,7 +77,7 @@ const ABILITIES = {
 	},
 	"Thermal_Radiation": {
 		"name": "Thermal Radiation", "element": "fire",
-		"damage": 25, "mp_cost": 8, "range": 2, "accuracy": 95,
+		"damage": 26, "mp_cost": 9, "range": 2, "accuracy": 94,
 		"effect": "aoe_heat", "tier": "basic", "falloff_per_tile": 0.05,
 		"forms": {
 			"heat_wave": {"name": "Heat Wave", "range": 2, "dmg_mult": 1.00, "mp_mult": 0.85, "shape": "cardinal", "desc": "Direct infrared flash wave"},
@@ -88,7 +88,7 @@ const ABILITIES = {
 	},
 	"Nuclear_Ignition": {
 		"name": "Nuclear Ignition", "element": "fire",
-		"damage": 80, "mp_cost": 40, "range": 2, "accuracy": 85,
+		"damage": 78, "mp_cost": 38, "range": 2, "accuracy": 86,
 		"effect": "irradiate", "tier": "mastery", "falloff_per_tile": 0.10,
 		"forms": {
 			"fission_strike": {"name": "Fission Strike", "range": 1, "dmg_mult": 1.25, "mp_mult": 0.90, "shape": "cardinal", "desc": "Point-blank micro-fission blast dealing massive damage"},
@@ -99,7 +99,7 @@ const ABILITIES = {
 	},
 	"Photonic_Burst": {
 		"name": "Photonic Burst", "element": "fire",
-		"damage": 50, "mp_cost": 22, "range": 3, "accuracy": 94,
+		"damage": 48, "mp_cost": 21, "range": 3, "accuracy": 92,
 		"effect": "blind", "tier": "advanced", "falloff_per_tile": 0.06,
 		"forms": {
 			"blinding_flare": {"name": "Blinding Flare", "range": 3, "dmg_mult": 0.90, "mp_mult": 0.85, "shape": "cardinal", "desc": "Concentrated photonic flash that blinds the target"},
@@ -110,7 +110,7 @@ const ABILITIES = {
 	},
 	"Destruction": {
 		"name": "Destruction", "element": "fire",
-		"damage": 120, "mp_cost": 60, "range": 2, "accuracy": 90,
+		"damage": 105, "mp_cost": 52, "range": 2, "accuracy": 90,
 		"effect": "unmaking", "tier": "pinnacle", "falloff_per_tile": 0.15,
 		"forms": {
 			"annihilation_ray": {"name": "Annihilation Ray", "range": 3, "dmg_mult": 1.00, "mp_mult": 1.00, "shape": "linear_front", "desc": "Linear entropy disintegration ray"},
@@ -134,7 +134,7 @@ const ABILITIES = {
 	},
 	"Ice": {
 		"name": "Ice", "element": "water",
-		"damage": 30, "mp_cost": 10, "range": 2, "accuracy": 92,
+		"damage": 32, "mp_cost": 11, "range": 2, "accuracy": 92,
 		"effect": "slow", "tier": "basic", "falloff_per_tile": 0.08,
 		"forms": {
 			"frost_shard": {"name": "Frost Shard", "range": 3, "dmg_mult": 1.00, "mp_mult": 1.00, "shape": "linear_front", "desc": "Linear freezing spike"},
@@ -145,7 +145,7 @@ const ABILITIES = {
 	},
 	"Blood": {
 		"name": "Blood", "element": "water",
-		"damage": 55, "mp_cost": 25, "range": 2, "accuracy": 90,
+		"damage": 54, "mp_cost": 24, "range": 2, "accuracy": 90,
 		"effect": "control", "tier": "advanced", "falloff_per_tile": 0.10,
 		"forms": {
 			"siphon_strike": {"name": "Siphon Strike", "range": 1, "dmg_mult": 1.20, "mp_mult": 0.85, "shape": "cardinal", "desc": "Direct touch coagulating enemy circulation and siphoning vigor"},
@@ -156,7 +156,7 @@ const ABILITIES = {
 	},
 	"Rejuvenation": {
 		"name": "Rejuvenation", "element": "water",
-		"damage": -55, "mp_cost": 30, "range": 3, "accuracy": 100,
+		"damage": -60, "mp_cost": 45, "range": 3, "accuracy": 100,
 		"effect": "heal", "tier": "pinnacle", "falloff_per_tile": 0.02,
 		"forms": {
 			"life_stream": {"name": "Life Stream", "range": 3, "dmg_mult": 1.00, "mp_mult": 1.00, "shape": "linear_front", "desc": "Continuous beam of restorative primordial water"},
@@ -167,7 +167,7 @@ const ABILITIES = {
 	},
 	"Acid_Rain": {
 		"name": "Acid Rain", "element": "water",
-		"damage": 35, "mp_cost": 15, "range": 4, "accuracy": 88,
+		"damage": 32, "mp_cost": 13, "range": 4, "accuracy": 88,
 		"effect": "corrode", "tier": "basic", "falloff_per_tile": 0.06,
 		"forms": {
 			"corrosive_jet": {"name": "Corrosive Jet", "range": 3, "dmg_mult": 1.10, "mp_mult": 0.90, "shape": "linear_front", "desc": "Concentrated acidic stream melting single target armor"},
@@ -178,7 +178,7 @@ const ABILITIES = {
 	},
 	"Pressure_Wave": {
 		"name": "Pressure Wave", "element": "water",
-		"damage": 40, "mp_cost": 18, "range": 3, "accuracy": 92,
+		"damage": 36, "mp_cost": 14, "range": 3, "accuracy": 90,
 		"effect": "knockback", "tier": "basic", "falloff_per_tile": 0.09,
 		"forms": {
 			"water_cannon": {"name": "Water Cannon", "range": 3, "dmg_mult": 1.10, "mp_mult": 0.90, "shape": "linear_front", "desc": "High pressure linear jet blasting target backwards"},
@@ -189,7 +189,7 @@ const ABILITIES = {
 	},
 	"Tide_Pull": {
 		"name": "Tide Pull", "element": "water",
-		"damage": 20, "mp_cost": 22, "range": 5, "accuracy": 90,
+		"damage": 28, "mp_cost": 20, "range": 5, "accuracy": 90,
 		"effect": "pull", "tier": "advanced", "falloff_per_tile": 0.05,
 		"forms": {
 			"undertow_lash": {"name": "Undertow Lash", "range": 5, "dmg_mult": 1.00, "mp_mult": 1.00, "shape": "linear_front", "desc": "Long-range water tendon pulling target directly to you"},
@@ -200,7 +200,7 @@ const ABILITIES = {
 	},
 	"Mist_Fog": {
 		"name": "Mist / Fog", "element": "water",
-		"damage": 0, "mp_cost": 12, "range": 3, "accuracy": 100,
+		"damage": 0, "mp_cost": 10, "range": 3, "accuracy": 100,
 		"effect": "conceal", "tier": "basic", "falloff_per_tile": 0.0,
 		"forms": {
 			"vapor_screen": {"name": "Vapor Screen", "range": 2, "dmg_mult": 1.00, "mp_mult": 0.85, "shape": "cardinal", "desc": "Dense wall of moisture granting heavy evasion"},
@@ -211,7 +211,7 @@ const ABILITIES = {
 	},
 	"Purification": {
 		"name": "Purification", "element": "water",
-		"damage": 0, "mp_cost": 15, "range": 2, "accuracy": 100,
+		"damage": 0, "mp_cost": 14, "range": 2, "accuracy": 100,
 		"effect": "cleanse", "tier": "advanced", "falloff_per_tile": 0.0,
 		"forms": {
 			"cleansing_touch": {"name": "Cleansing Touch", "range": 1, "dmg_mult": 1.00, "mp_mult": 0.85, "shape": "cardinal", "desc": "Direct touch removing all negative status conditions"},
@@ -224,7 +224,7 @@ const ABILITIES = {
 	# ── EARTH ─────────────────────────────────────────────────────────────────
 	"Stone_Plating": {
 		"name": "Stone Plating", "element": "earth",
-		"damage": 20, "mp_cost": 10, "range": 1, "accuracy": 95,
+		"damage": 22, "mp_cost": 10, "range": 1, "accuracy": 95,
 		"effect": "barrier", "tier": "basic", "falloff_per_tile": 0.0,
 		"forms": {
 			"stone_skin": {"name": "Stone Skin", "range": 1, "dmg_mult": 1.00, "mp_mult": 0.85, "shape": "cardinal", "effect": "armor_buff", "desc": "Self armor & poise boost (+40 shield)"},
@@ -235,7 +235,7 @@ const ABILITIES = {
 	},
 	"Metal": {
 		"name": "Metal", "element": "earth",
-		"damage": 38, "mp_cost": 12, "range": 2, "accuracy": 94,
+		"damage": 38, "mp_cost": 13, "range": 2, "accuracy": 94,
 		"effect": "", "tier": "basic", "falloff_per_tile": 0.08,
 		"forms": {
 			"forged_fist": {"name": "Forged Fist", "range": 1, "dmg_mult": 1.25, "mp_mult": 0.85, "shape": "cardinal", "desc": "Heavy hardened iron punch inflicting crushing impact"},
@@ -246,7 +246,7 @@ const ABILITIES = {
 	},
 	"Sand": {
 		"name": "Sand", "element": "earth",
-		"damage": 20, "mp_cost": 8, "range": 3, "accuracy": 88,
+		"damage": 24, "mp_cost": 9, "range": 3, "accuracy": 88,
 		"effect": "blind", "tier": "basic", "falloff_per_tile": 0.06,
 		"forms": {
 			"sand_blast": {"name": "Sand Blast", "range": 3, "dmg_mult": 1.00, "mp_mult": 0.85, "shape": "linear_front", "desc": "High velocity abrasive spray blinding target"},
@@ -257,7 +257,7 @@ const ABILITIES = {
 	},
 	"Crystal": {
 		"name": "Crystal", "element": "earth",
-		"damage": 30, "mp_cost": 14, "range": 2, "accuracy": 92,
+		"damage": 30, "mp_cost": 12, "range": 2, "accuracy": 92,
 		"effect": "barrier", "tier": "basic", "falloff_per_tile": 0.07,
 		"forms": {
 			"crystal_shard": {"name": "Crystal Shard", "range": 3, "dmg_mult": 1.05, "mp_mult": 0.90, "shape": "linear_front", "desc": "Razor-sharp quartz lance piercing through barriers"},
@@ -268,7 +268,7 @@ const ABILITIES = {
 	},
 	"Magnetism": {
 		"name": "Magnetism", "element": "earth",
-		"damage": 25, "mp_cost": 16, "range": 4, "accuracy": 90,
+		"damage": 32, "mp_cost": 18, "range": 4, "accuracy": 90,
 		"effect": "pull", "tier": "advanced", "falloff_per_tile": 0.05,
 		"forms": {
 			"magnetic_pulse": {"name": "Magnetic Pulse", "range": 4, "dmg_mult": 1.00, "mp_mult": 0.90, "shape": "linear_front", "desc": "Electromagnetic pulse yanking target toward or away"},
@@ -279,7 +279,7 @@ const ABILITIES = {
 	},
 	"Petrification": {
 		"name": "Petrification", "element": "earth",
-		"damage": 15, "mp_cost": 20, "range": 2, "accuracy": 86,
+		"damage": 26, "mp_cost": 20, "range": 2, "accuracy": 88,
 		"effect": "root", "tier": "advanced", "falloff_per_tile": 0.10,
 		"forms": {
 			"basalt_gaze": {"name": "Basalt Gaze", "range": 2, "dmg_mult": 1.00, "mp_mult": 0.90, "shape": "cardinal", "desc": "Direct mineralizing ray stiffening target joints"},
@@ -290,7 +290,7 @@ const ABILITIES = {
 	},
 	"Tectonic": {
 		"name": "Tectonic", "element": "earth",
-		"damage": 50, "mp_cost": 30, "range": 3, "accuracy": 88,
+		"damage": 72, "mp_cost": 35, "range": 3, "accuracy": 88,
 		"effect": "terrain_break", "tier": "mastery", "falloff_per_tile": 0.08,
 		"forms": {
 			"fault_line": {"name": "Fault Line", "range": 3, "dmg_mult": 1.05, "mp_mult": 1.00, "shape": "linear_front", "desc": "Linear rift cracking the ground and destroying cover"},
@@ -301,7 +301,7 @@ const ABILITIES = {
 	},
 	"Density_Shift": {
 		"name": "Density Shift", "element": "earth",
-		"damage": 0, "mp_cost": 18, "range": 2, "accuracy": 95,
+		"damage": 0, "mp_cost": 16, "range": 2, "accuracy": 95,
 		"effect": "compress", "tier": "advanced", "falloff_per_tile": 0.0,
 		"forms": {
 			"hyper_density": {"name": "Hyper Density", "range": 1, "dmg_mult": 0.00, "mp_mult": 0.85, "shape": "cardinal", "desc": "Compress physical mass into ultra-dense posture: +50 poise"},
@@ -312,7 +312,7 @@ const ABILITIES = {
 	},
 	"Gravity": {
 		"name": "Gravity", "element": "earth",
-		"damage": 45, "mp_cost": 45, "range": 3, "accuracy": 92,
+		"damage": 58, "mp_cost": 48, "range": 3, "accuracy": 92,
 		"effect": "lockdown", "tier": "pinnacle", "falloff_per_tile": 0.05,
 		"forms": {
 			"gravitic_pull": {"name": "Gravitic Pull", "range": 4, "dmg_mult": 0.90, "mp_mult": 0.90, "shape": "linear_front", "desc": "Pulls distant enemies 2 squares toward your position"},
@@ -325,7 +325,7 @@ const ABILITIES = {
 	# ── AIR ───────────────────────────────────────────────────────────────────
 	"Gale_Step": {
 		"name": "Gale Step", "element": "air",
-		"damage": 18, "mp_cost": 8, "range": 2, "accuracy": 95,
+		"damage": 20, "mp_cost": 8, "range": 2, "accuracy": 95,
 		"effect": "evasion", "tier": "basic", "falloff_per_tile": 0.0,
 		"forms": {
 			"wind_slip": {"name": "Wind Slip", "range": 1, "dmg_mult": 0.00, "mp_mult": 0.85, "shape": "cardinal", "effect": "dodge_buff", "desc": "+40% Agility dodge for next turn"},
@@ -336,7 +336,7 @@ const ABILITIES = {
 	},
 	"Wind": {
 		"name": "Wind", "element": "air",
-		"damage": 20, "mp_cost": 8, "range": 3, "accuracy": 90,
+		"damage": 26, "mp_cost": 9, "range": 3, "accuracy": 92,
 		"effect": "push", "tier": "basic", "falloff_per_tile": 0.06,
 		"forms": {
 			"gust_strike": {"name": "Gust Strike", "range": 2, "dmg_mult": 1.10, "mp_mult": 0.85, "shape": "cardinal", "desc": "Concentrated air punch knocking target back 1 tile"},
@@ -347,7 +347,7 @@ const ABILITIES = {
 	},
 	"Sound_Sonic": {
 		"name": "Sound / Sonic", "element": "air",
-		"damage": 35, "mp_cost": 14, "range": 3, "accuracy": 92,
+		"damage": 34, "mp_cost": 12, "range": 3, "accuracy": 92,
 		"effect": "disrupt", "tier": "basic", "falloff_per_tile": 0.07,
 		"forms": {
 			"sonic_palm": {"name": "Sonic Palm", "range": 1, "dmg_mult": 1.20, "mp_mult": 0.85, "shape": "cardinal", "desc": "Point-blank acoustic pulse staggering target poise"},
@@ -358,7 +358,7 @@ const ABILITIES = {
 	},
 	"Nitrogen": {
 		"name": "Nitrogen", "element": "air",
-		"damage": 30, "mp_cost": 12, "range": 2, "accuracy": 90,
+		"damage": 30, "mp_cost": 11, "range": 2, "accuracy": 90,
 		"effect": "cryo", "tier": "basic", "falloff_per_tile": 0.08,
 		"forms": {
 			"frostbite_grasp": {"name": "Frostbite Grasp", "range": 1, "dmg_mult": 1.20, "mp_mult": 0.85, "shape": "cardinal", "desc": "Sub-zero liquid nitrogen touch freezing target reflexes"},
@@ -369,7 +369,7 @@ const ABILITIES = {
 	},
 	"Oxygen": {
 		"name": "Oxygen", "element": "air",
-		"damage": 20, "mp_cost": 10, "range": 3, "accuracy": 94,
+		"damage": 22, "mp_cost": 9, "range": 3, "accuracy": 94,
 		"effect": "ignite_boost", "tier": "basic", "falloff_per_tile": 0.05,
 		"forms": {
 			"combustion_feed": {"name": "Combustion Feed", "range": 3, "dmg_mult": 1.00, "mp_mult": 0.85, "shape": "cardinal", "desc": "Inject pure oxygen into flames, amplifying fire damage"},
@@ -380,7 +380,7 @@ const ABILITIES = {
 	},
 	"Vacuum": {
 		"name": "Vacuum", "element": "air",
-		"damage": 40, "mp_cost": 22, "range": 4, "accuracy": 88,
+		"damage": 46, "mp_cost": 23, "range": 4, "accuracy": 88,
 		"effect": "pull_all", "tier": "advanced", "falloff_per_tile": 0.08,
 		"forms": {
 			"implosion_palm": {"name": "Implosion Palm", "range": 1, "dmg_mult": 1.25, "mp_mult": 0.90, "shape": "cardinal", "desc": "Micro-vacuum pocket collapsing on target torso"},
@@ -391,7 +391,7 @@ const ABILITIES = {
 	},
 	"Pressure_Control": {
 		"name": "Pressure Control", "element": "air",
-		"damage": 55, "mp_cost": 28, "range": 2, "accuracy": 86,
+		"damage": 70, "mp_cost": 35, "range": 2, "accuracy": 88,
 		"effect": "crush", "tier": "mastery", "falloff_per_tile": 0.10,
 		"forms": {
 			"baric_strike": {"name": "Baric Strike", "range": 1, "dmg_mult": 1.20, "mp_mult": 0.85, "shape": "cardinal", "desc": "Sudden barometric spike slamming target to the floor"},
@@ -402,7 +402,7 @@ const ABILITIES = {
 	},
 	"Scent_Pheromone": {
 		"name": "Scent / Pheromone", "element": "air",
-		"damage": 0, "mp_cost": 16, "range": 4, "accuracy": 85,
+		"damage": 0, "mp_cost": 15, "range": 4, "accuracy": 88,
 		"effect": "confuse", "tier": "advanced", "falloff_per_tile": 0.0,
 		"forms": {
 			"tracer_mist": {"name": "Tracer Mist", "range": 4, "dmg_mult": 0.00, "mp_mult": 0.80, "shape": "linear_front", "desc": "Mark target with biochemical scent, giving allies +30% accuracy"},
@@ -413,7 +413,7 @@ const ABILITIES = {
 	},
 	"Space": {
 		"name": "Space", "element": "space",
-		"damage": 70, "mp_cost": 55, "range": 6, "accuracy": 95,
+		"damage": 68, "mp_cost": 50, "range": 6, "accuracy": 94,
 		"effect": "zone_denial", "tier": "pinnacle", "falloff_per_tile": 0.02,
 		"forms": {
 			"void_cleave": {"name": "Void Cleave", "range": 2, "dmg_mult": 1.25, "mp_mult": 0.90, "shape": "cardinal", "desc": "Fissure in localized space rending target matter"},
@@ -426,7 +426,7 @@ const ABILITIES = {
 	# ── SPACE & TIME (PRIMORDIAL DISCIPLINES) ─────────────────────────────────
 	"Spatial_Shift": {
 		"name": "Spatial Shift", "element": "space",
-		"damage": 22, "mp_cost": 12, "range": 3, "accuracy": 96,
+		"damage": 22, "mp_cost": 10, "range": 3, "accuracy": 96,
 		"effect": "teleport", "tier": "basic", "falloff_per_tile": 0.0,
 		"forms": {
 			"phase_step": {"name": "Phase Step", "range": 2, "dmg_mult": 0.00, "mp_mult": 0.85, "shape": "cardinal", "desc": "Instant short-range dimensional blink bypassing obstacles"},
@@ -437,7 +437,7 @@ const ABILITIES = {
 	},
 	"Spatial_Compression": {
 		"name": "Spatial Compression", "element": "space",
-		"damage": 48, "mp_cost": 24, "range": 4, "accuracy": 92,
+		"damage": 48, "mp_cost": 23, "range": 4, "accuracy": 92,
 		"effect": "compress", "tier": "advanced", "falloff_per_tile": 0.06,
 		"forms": {
 			"warp_pinch": {"name": "Warp Pinch", "range": 2, "dmg_mult": 1.15, "mp_mult": 0.85, "shape": "cardinal", "desc": "Pinch coordinates around target causing localized dimensional crush"},
@@ -459,7 +459,7 @@ const ABILITIES = {
 	},
 	"Time_Dilation": {
 		"name": "Time Dilation", "element": "time",
-		"damage": 24, "mp_cost": 12, "range": 3, "accuracy": 95,
+		"damage": 25, "mp_cost": 10, "range": 3, "accuracy": 95,
 		"effect": "slow", "tier": "basic", "falloff_per_tile": 0.05,
 		"forms": {
 			"chronobreak_touch": {"name": "Chronobreak Touch", "range": 1, "dmg_mult": 1.20, "mp_mult": 0.85, "shape": "cardinal", "desc": "Direct strike reducing target movement speed to 1"},
@@ -481,7 +481,7 @@ const ABILITIES = {
 	},
 	"Temporal_Decay": {
 		"name": "Temporal Decay", "element": "time",
-		"damage": 42, "mp_cost": 22, "range": 4, "accuracy": 92,
+		"damage": 45, "mp_cost": 22, "range": 4, "accuracy": 92,
 		"effect": "decay", "tier": "advanced", "falloff_per_tile": 0.06,
 		"forms": {
 			"entropic_touch": {"name": "Entropic Touch", "range": 1, "dmg_mult": 1.25, "mp_mult": 0.85, "shape": "cardinal", "desc": "Touch accelerating age in target cells for massive initial burst"},
@@ -492,7 +492,7 @@ const ABILITIES = {
 	},
 	"Chrono_Stasis": {
 		"name": "Chrono Stasis", "element": "time",
-		"damage": 70, "mp_cost": 50, "range": 3, "accuracy": 95,
+		"damage": 62, "mp_cost": 48, "range": 3, "accuracy": 94,
 		"effect": "stasis", "tier": "pinnacle", "falloff_per_tile": 0.02,
 		"forms": {
 			"stasis_lock": {"name": "Stasis Lock", "range": 2, "dmg_mult": 1.10, "mp_mult": 0.90, "shape": "cardinal", "desc": "Completely freeze single enemy in temporal crystallisation for 1 round"},
@@ -611,7 +611,7 @@ const ABILITIES = {
 	# Quicksand (Water + Earth)
 	"Mud_Mire": {
 		"name": "Mud Mire", "element": "quicksand",
-		"damage": 22, "mp_cost": 10, "range": 2, "accuracy": 95,
+		"damage": 24, "mp_cost": 10, "range": 2, "accuracy": 95,
 		"effect": "slow", "tier": "basic", "falloff_per_tile": 0.05,
 		"forms": {
 			"sludge_strike": {"name": "Sludge Strike", "range": 2, "dmg_mult": 1.15, "mp_mult": 0.85, "shape": "cardinal", "desc": "Heavy clump of dense soil slowing target footing"},
@@ -622,7 +622,7 @@ const ABILITIES = {
 	},
 	"Bog_Sink": {
 		"name": "Bog Sink", "element": "quicksand",
-		"damage": 40, "mp_cost": 20, "range": 3, "accuracy": 90,
+		"damage": 42, "mp_cost": 20, "range": 3, "accuracy": 90,
 		"effect": "root", "tier": "advanced", "falloff_per_tile": 0.07,
 		"forms": {
 			"sinkhole_clutch": {"name": "Sinkhole Clutch", "range": 2, "dmg_mult": 1.20, "mp_mult": 0.90, "shape": "cardinal", "desc": "Trap enemy feet into rapidly liquefying soil, rooting them"},
@@ -633,7 +633,7 @@ const ABILITIES = {
 	},
 	"Quicksand_Mire": {
 		"name": "Quicksand Mire", "element": "quicksand",
-		"damage": 62, "mp_cost": 35, "range": 4, "accuracy": 88,
+		"damage": 64, "mp_cost": 34, "range": 4, "accuracy": 88,
 		"effect": "mire", "tier": "mastery", "falloff_per_tile": 0.05,
 		"forms": {
 			"quicksand_funnel": {"name": "Quicksand Funnel", "range": 3, "dmg_mult": 1.20, "mp_mult": 0.90, "shape": "cardinal", "desc": "Vortex of liquefying silt swallowing enemy stance"},
@@ -646,7 +646,7 @@ const ABILITIES = {
 	# Blizzard (Water + Air)
 	"Flurry_Frost": {
 		"name": "Flurry Frost", "element": "blizzard",
-		"damage": 26, "mp_cost": 10, "range": 3, "accuracy": 94,
+		"damage": 28, "mp_cost": 10, "range": 3, "accuracy": 94,
 		"effect": "slow", "tier": "basic", "falloff_per_tile": 0.06,
 		"forms": {
 			"ice_needle": {"name": "Ice Needle", "range": 3, "dmg_mult": 1.15, "mp_mult": 0.85, "shape": "cardinal", "desc": "Whirling frost dart chilling target reflexes"},
@@ -657,7 +657,7 @@ const ABILITIES = {
 	},
 	"Chill_Squall": {
 		"name": "Chill Squall", "element": "blizzard",
-		"damage": 46, "mp_cost": 22, "range": 3, "accuracy": 90,
+		"damage": 46, "mp_cost": 21, "range": 3, "accuracy": 90,
 		"effect": "freeze", "tier": "advanced", "falloff_per_tile": 0.06,
 		"forms": {
 			"rime_spear": {"name": "Rime Spear", "range": 3, "dmg_mult": 1.20, "mp_mult": 0.90, "shape": "cardinal", "desc": "Piercing gale projectile encasing wet foes in ice"},
@@ -668,7 +668,7 @@ const ABILITIES = {
 	},
 	"Glacial_Blizzard": {
 		"name": "Glacial Blizzard", "element": "blizzard",
-		"damage": 70, "mp_cost": 38, "range": 4, "accuracy": 90,
+		"damage": 70, "mp_cost": 36, "range": 4, "accuracy": 90,
 		"effect": "freeze_slick", "tier": "mastery", "falloff_per_tile": 0.04,
 		"forms": {
 			"glacier_impact": {"name": "Glacier Impact", "range": 2, "dmg_mult": 1.30, "mp_mult": 0.90, "shape": "cardinal", "desc": "Crushing continental ice block slam"},
@@ -681,7 +681,7 @@ const ABILITIES = {
 	# Dust Devil (Earth + Air)
 	"Grit_Swirl": {
 		"name": "Grit Swirl", "element": "dust_devil",
-		"damage": 24, "mp_cost": 10, "range": 3, "accuracy": 92,
+		"damage": 26, "mp_cost": 10, "range": 3, "accuracy": 92,
 		"effect": "blind", "tier": "basic", "falloff_per_tile": 0.06,
 		"forms": {
 			"sand_pebble": {"name": "Sand Pebble", "range": 3, "dmg_mult": 1.15, "mp_mult": 0.85, "shape": "cardinal", "desc": "High velocity grit particle blinding target"},
@@ -692,7 +692,7 @@ const ABILITIES = {
 	},
 	"Abrasive_Grit": {
 		"name": "Abrasive Grit", "element": "dust_devil",
-		"damage": 44, "mp_cost": 20, "range": 3, "accuracy": 90,
+		"damage": 45, "mp_cost": 20, "range": 3, "accuracy": 90,
 		"effect": "disrupt", "tier": "advanced", "falloff_per_tile": 0.06,
 		"forms": {
 			"sandblaster": {"name": "Sandblaster", "range": 2, "dmg_mult": 1.20, "mp_mult": 0.90, "shape": "cardinal", "desc": "Weaponized atmospheric sandblast stripping armor"},
@@ -703,7 +703,7 @@ const ABILITIES = {
 	},
 	"Dust_Devil_Sandstorm": {
 		"name": "Dust Devil Sandstorm", "element": "dust_devil",
-		"damage": 65, "mp_cost": 36, "range": 4, "accuracy": 88,
+		"damage": 66, "mp_cost": 35, "range": 4, "accuracy": 88,
 		"effect": "sandstorm", "tier": "mastery", "falloff_per_tile": 0.04,
 		"forms": {
 			"cyclone_twister": {"name": "Cyclone Twister", "range": 3, "dmg_mult": 1.25, "mp_mult": 0.90, "shape": "cardinal", "desc": "Abrasive tornado lifting and disorienting target"},
@@ -739,7 +739,7 @@ const ABILITIES = {
 	},
 	"Geothermal_Obsidian": {
 		"name": "Geothermal Obsidian", "element": "fire_water_earth",
-		"damage": 82, "mp_cost": 44, "range": 4, "accuracy": 90,
+		"damage": 78, "mp_cost": 42, "range": 4, "accuracy": 90,
 		"effect": "obsidian_bleed", "tier": "mastery", "falloff_per_tile": 0.05,
 		"forms": {
 			"obsidian_spike": {"name": "Obsidian Spike", "range": 2, "dmg_mult": 1.30, "mp_mult": 0.90, "shape": "cardinal", "desc": "Massive black obsidian spire erupting beneath target"},
@@ -752,7 +752,7 @@ const ABILITIES = {
 	# Tempest Flame (Fire + Water + Air)
 	"Hailfire": {
 		"name": "Hailfire", "element": "fire_water_air",
-		"damage": 32, "mp_cost": 14, "range": 3, "accuracy": 92,
+		"damage": 32, "mp_cost": 13, "range": 3, "accuracy": 92,
 		"effect": "slow", "tier": "basic", "falloff_per_tile": 0.06,
 		"forms": {
 			"pyroclastic_ice": {"name": "Pyroclastic Ice", "range": 3, "dmg_mult": 1.15, "mp_mult": 0.85, "shape": "cardinal", "desc": "Supercooled hail encased in chemical fire slowing and burning"},
@@ -774,7 +774,7 @@ const ABILITIES = {
 	},
 	"Superheated_Cyclone": {
 		"name": "Superheated Cyclone", "element": "fire_water_air",
-		"damage": 80, "mp_cost": 42, "range": 4, "accuracy": 92,
+		"damage": 76, "mp_cost": 40, "range": 4, "accuracy": 92,
 		"effect": "vortex_drain", "tier": "mastery", "falloff_per_tile": 0.04,
 		"forms": {
 			"vortex_funnel": {"name": "Vortex Funnel", "range": 3, "dmg_mult": 1.25, "mp_mult": 0.90, "shape": "cardinal", "desc": "Boiling vacuum funnel pulling target in and burning stamina"},
@@ -809,7 +809,7 @@ const ABILITIES = {
 	},
 	"Meteoric_Reentry": {
 		"name": "Meteoric Re-Entry", "element": "fire_earth_air",
-		"damage": 85, "mp_cost": 46, "range": 3, "accuracy": 88,
+		"damage": 80, "mp_cost": 44, "range": 3, "accuracy": 88,
 		"effect": "crater_impact", "tier": "mastery", "falloff_per_tile": 0.05,
 		"forms": {
 			"artillery_impact": {"name": "Artillery Impact", "range": 3, "dmg_mult": 1.30, "mp_mult": 0.90, "shape": "cardinal", "desc": "Kinetic blazing meteorite slamming into single target"},
@@ -822,7 +822,7 @@ const ABILITIES = {
 	# Lifeweave (Water + Earth + Air)
 	"Bog_Traps": {
 		"name": "Bog Traps", "element": "water_earth_air",
-		"damage": 26, "mp_cost": 12, "range": 3, "accuracy": 94,
+		"damage": 28, "mp_cost": 12, "range": 3, "accuracy": 94,
 		"effect": "root", "tier": "basic", "falloff_per_tile": 0.06,
 		"forms": {
 			"creeping_vine": {"name": "Creeping Vine", "range": 3, "dmg_mult": 1.15, "mp_mult": 0.85, "shape": "cardinal", "desc": "Organic wetland root grasping enemy ankles"},
@@ -844,7 +844,7 @@ const ABILITIES = {
 	},
 	"Permafrost_Cryotectonic": {
 		"name": "Permafrost Cryo-Tectonic", "element": "water_earth_air",
-		"damage": 78, "mp_cost": 42, "range": 4, "accuracy": 92,
+		"damage": 76, "mp_cost": 40, "range": 4, "accuracy": 92,
 		"effect": "permafrost_tomb", "tier": "mastery", "falloff_per_tile": 0.04,
 		"forms": {
 			"continental_spike": {"name": "Continental Spike", "range": 2, "dmg_mult": 1.30, "mp_mult": 0.90, "shape": "cardinal", "desc": "Continental tectonic glacier impaling target"},
@@ -866,9 +866,10 @@ const ELEMENTS = {
 		"badge": "Energy",
 		"color": Color(1.0, 0.3, 0.1, 1.0),
 		"base_speed": 3,
+		"base_defense": 20,
 		"base_agility": 28,
 		"base_dexterity": 32,
-		"base_hp": 90,
+		"base_hp": 100,
 		"base_mp": 100,
 		"base_stamina": 100,
 		"weakness": ["water", "air"],
@@ -883,8 +884,9 @@ const ELEMENTS = {
 		"badge": "Flow",
 		"color": Color(0.2, 0.5, 1.0, 1.0),
 		"base_speed": 2,
-		"base_agility": 24,
-		"base_dexterity": 26,
+		"base_defense": 22,
+		"base_agility": 26,
+		"base_dexterity": 28,
 		"base_hp": 110,
 		"base_mp": 120,
 		"base_stamina": 95,
@@ -900,6 +902,7 @@ const ELEMENTS = {
 		"badge": "Mass",
 		"color": Color(0.6, 0.4, 0.15, 1.0),
 		"base_speed": 2,
+		"base_defense": 28,
 		"base_agility": 16,
 		"base_dexterity": 24,
 		"base_hp": 130,
@@ -917,9 +920,10 @@ const ELEMENTS = {
 		"badge": "Wave",
 		"color": Color(0.7, 0.9, 1.0, 1.0),
 		"base_speed": 4,
-		"base_agility": 38,
-		"base_dexterity": 28,
-		"base_hp": 80,
+		"base_defense": 16,
+		"base_agility": 34,
+		"base_dexterity": 30,
+		"base_hp": 90,
 		"base_mp": 110,
 		"base_stamina": 105,
 		"weakness": ["earth", "fire"],
@@ -933,12 +937,13 @@ const ELEMENTS = {
 		"display_name": "Zero",
 		"badge": "Null Void",
 		"color": Color(0.75, 0.25, 0.85, 1.0),
-		"base_speed": 4,
-		"base_agility": 35,
-		"base_dexterity": 35,
-		"base_hp": 120,
-		"base_mp": 140,
-		"base_stamina": 120,
+		"base_speed": 3,
+		"base_defense": 22,
+		"base_agility": 30,
+		"base_dexterity": 30,
+		"base_hp": 110,
+		"base_mp": 120,
+		"base_stamina": 110,
 		"weakness": [],
 		"skill_pool": [
 			"Destruction", "Gravity", "Space", "Rejuvenation"
@@ -1911,3 +1916,30 @@ func get_skill_form_keys(skill_key: String) -> Array:
 func get_skill_form_info(skill_key: String, form_key: String) -> Dictionary:
 	var forms = get_skill_forms(skill_key)
 	return forms.get(form_key, {})
+
+func is_elemental_weakness(attacker_elem: String, target_elem: String) -> bool:
+	var a = attacker_elem.to_lower()
+	var t = target_elem.to_lower()
+	if a.is_empty() or t.is_empty() or a == t:
+		return false
+	if t == "zero":
+		return false
+	if ELEMENTS.has(t):
+		var weaknesses = ELEMENTS[t].get("weakness", [])
+		return a in weaknesses
+	return false
+
+func get_elemental_multiplier(attacker_elem: String, target_elem: String) -> float:
+	var a = attacker_elem.to_lower()
+	var t = target_elem.to_lower()
+	if a.is_empty() or t.is_empty() or a == t:
+		return 1.0
+	if a == "zero":
+		return 1.15
+	if t == "zero":
+		return 1.0
+	if is_elemental_weakness(a, t):
+		return 1.25
+	if is_elemental_weakness(t, a):
+		return 0.85
+	return 1.0

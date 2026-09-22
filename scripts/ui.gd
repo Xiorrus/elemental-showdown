@@ -392,6 +392,14 @@ var _element_db               = null
 var _player_ref               = null
 var _cinzel_font:      Font   = null
 
+# Hit-Stop & Screen Shake (Polish & Game Feel)
+var _shake_intensity: float = 0.0
+var _shake_timer: float = 0.0
+var _shake_duration: float = 0.0
+var _target_shake_node: Node2D = null
+var _orig_shake_node_pos: Vector2 = Vector2.ZERO
+var _is_hit_stopping: bool = false
+
 const MAX_LOG_LINES = 7
 const PAD     = 10
 const PANEL_W = 270
@@ -434,6 +442,53 @@ func _ready():
 	log_action("[color=#d4a017]Match commenced.[/color] Select movement tile or right-click to act.")
 
 	get_viewport().size_changed.connect(_reflow_ui)
+
+func _process(delta: float):
+	if _shake_timer > 0.0:
+		_shake_timer -= delta
+		if _target_shake_node == null or not is_instance_valid(_target_shake_node):
+			var cam = get_viewport().get_camera_2d() if get_viewport() else null
+			if cam:
+				_target_shake_node = cam
+				_orig_shake_node_pos = cam.offset
+			elif get_parent() is Node2D:
+				_target_shake_node = get_parent() as Node2D
+				_orig_shake_node_pos = _target_shake_node.position
+
+		if _target_shake_node and is_instance_valid(_target_shake_node):
+			var factor = clampf(_shake_timer / max(_shake_duration, 0.001), 0.0, 1.0)
+			var current_amt = _shake_intensity * factor
+			var rand_vec = Vector2(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)).normalized() * (randf() * current_amt)
+			if _target_shake_node is Camera2D:
+				(_target_shake_node as Camera2D).offset = _orig_shake_node_pos + rand_vec
+			else:
+				_target_shake_node.position = _orig_shake_node_pos + rand_vec
+
+			if _shake_timer <= 0.0:
+				if _target_shake_node is Camera2D:
+					(_target_shake_node as Camera2D).offset = _orig_shake_node_pos
+				else:
+					_target_shake_node.position = _orig_shake_node_pos
+				_shake_intensity = 0.0
+
+func trigger_screen_shake(intensity: float = 5.0, duration: float = 0.20):
+	if DisplayServer.get_name() == "headless":
+		return
+	_shake_intensity = max(_shake_intensity, intensity)
+	_shake_duration = max(_shake_duration, duration)
+	_shake_timer = _shake_duration
+
+func trigger_hit_stop(duration_ms: float = 30.0):
+	if DisplayServer.get_name() == "headless":
+		return
+	if _is_hit_stopping:
+		return
+	_is_hit_stopping = true
+	var orig_scale = Engine.time_scale
+	Engine.time_scale = 0.04
+	await get_tree().create_timer(duration_ms / 1000.0, true, false, true).timeout
+	Engine.time_scale = orig_scale
+	_is_hit_stopping = false
 
 func _unhandled_input(event: InputEvent):
 	if event is InputEventKey and event.is_pressed() and not event.is_echo():
@@ -1992,7 +2047,7 @@ func _on_skill_offer_chosen(idx: int):
 	skill_offer_panel.visible = false
 	_skill_offer_keys = []
 
-func spawn_damage_popup(world_pos: Vector2, amount: Variant, popup_type: String = "damage"):
+func spawn_damage_popup(world_pos: Vector2, amount: Variant, popup_type: String = "damage", skill_elem: String = ""):
 	var popup = DamagePopup.new()
 	popup._font = _cinzel_font
 	add_child(popup)
@@ -2001,23 +2056,61 @@ func spawn_damage_popup(world_pos: Vector2, amount: Variant, popup_type: String 
 	var color: Color = Color(1.0, 0.9, 0.4)
 	var font_sz: int = 18
 
+	var sfx = get_node_or_null("/root/SoundFX")
+
 	match popup_type:
 		"damage":
 			txt = "-%d" % abs(int(amount))
 			color = Color(1.0, 0.3, 0.3)
 			font_sz = 18
+			trigger_screen_shake(3.5, 0.16)
+			trigger_hit_stop(25.0)
+			if sfx:
+				sfx.play_element_impact(skill_elem, false, false)
 		"heal":
 			txt = "+%d" % abs(int(amount))
 			color = Color(0.2, 1.0, 0.4)
 			font_sz = 18
+			if sfx:
+				sfx.play_sfx("heal")
 		"crit":
 			txt = "CRIT! -%d" % abs(int(amount))
 			color = Color(1.0, 0.85, 0.1)
 			font_sz = 22
+			trigger_screen_shake(9.0, 0.28)
+			trigger_hit_stop(50.0)
+			if sfx:
+				sfx.play_element_impact(skill_elem, true, false)
 		"status":
 			txt = str(amount).to_upper()
 			color = Color(0.9, 0.7, 1.0)
 			font_sz = 16
+			if "WEAKNESS" in txt:
+				color = Color(1.0, 0.45, 0.15)
+				trigger_screen_shake(7.5, 0.24)
+				trigger_hit_stop(45.0)
+				if sfx:
+					sfx.play_element_impact(skill_elem, false, true)
+			elif "CRITICAL" in txt or "BACKSTAB" in txt:
+				color = Color(1.0, 0.88, 0.2)
+				trigger_screen_shake(9.5, 0.30)
+				trigger_hit_stop(50.0)
+				if sfx:
+					sfx.play_sfx("crit")
+			elif "BRACED" in txt or "BLOCK" in txt:
+				color = Color(0.4, 0.8, 1.0)
+				trigger_screen_shake(5.0, 0.18)
+				if sfx:
+					sfx.play_sfx("block")
+			elif "RIPOSTE" in txt:
+				color = Color(1.0, 0.7, 0.2)
+				trigger_screen_shake(6.5, 0.22)
+				trigger_hit_stop(35.0)
+				if sfx:
+					sfx.play_sfx("block")
+			elif "EVADED" in txt:
+				if sfx:
+					sfx.play_sfx("air", -3.0, 1.25)
 		"mp":
 			txt = "MP -%d" % abs(int(amount))
 			color = Color(0.3, 0.6, 1.0)
@@ -2036,3 +2129,111 @@ func spawn_damage_popup(world_pos: Vector2, amount: Variant, popup_type: String 
 	screen_pos.x += randf_range(-12.0, 12.0)
 
 	popup.setup(txt, color, screen_pos, font_sz)
+
+func show_fusion_banner(fusion_name: String, elem1: String, elem2: String, bonus_dmg: int = 12):
+	var banner = PanelContainer.new()
+	banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var bw = 380.0
+	var bh = 48.0
+	banner.size = Vector2(bw, bh)
+	banner.position = Vector2((SW - bw) / 2.0, 72.0)
+
+	var sb = StyleBoxFlat.new()
+	sb.set_corner_radius_all(4)
+	sb.bg_color = Color(0.05, 0.08, 0.14, 0.96)
+	sb.border_width_left = 2
+	sb.border_width_top = 2
+	sb.border_width_right = 2
+	sb.border_width_bottom = 2
+	sb.border_color = UITheme.GOLD_PRIMARY
+	sb.shadow_color = Color(0.95, 0.72, 0.22, 0.5)
+	sb.shadow_size = 10
+	banner.add_theme_stylebox_override("panel", sb)
+
+	var vb = VBoxContainer.new()
+	vb.alignment = BoxContainer.ALIGNMENT_CENTER
+	vb.add_theme_constant_override("separation", 2)
+	banner.add_child(vb)
+
+	var title = Label.new()
+	title.text = "⚡ ELEMENTAL FUSION: %s" % fusion_name.to_upper()
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 12)
+	title.modulate = UITheme.GOLD_PRIMARY
+	if _cinzel_font:
+		title.add_theme_font_override("font", _cinzel_font)
+	vb.add_child(title)
+
+	var sub = Label.new()
+	sub.text = "%s + %s  •  +%d Bonus Damage!" % [elem1.capitalize(), elem2.capitalize(), bonus_dmg]
+	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	sub.add_theme_font_size_override("font_size", 9)
+	sub.modulate = Color(0.85, 0.92, 1.0)
+	vb.add_child(sub)
+
+	add_child(banner)
+
+	banner.modulate = Color(1, 1, 1, 0)
+	banner.position.y = 52.0
+	var tween = create_tween().set_parallel(true)
+	tween.tween_property(banner, "modulate:a", 1.0, 0.25)
+	tween.tween_property(banner, "position:y", 72.0, 0.25).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+
+	var fade_tween = create_tween()
+	fade_tween.tween_interval(2.2)
+	fade_tween.tween_property(banner, "modulate:a", 0.0, 0.4)
+	fade_tween.tween_callback(banner.queue_free)
+
+func show_resonance_banner():
+	var banner = PanelContainer.new()
+	banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var bw = 360.0
+	var bh = 44.0
+	banner.size = Vector2(bw, bh)
+	banner.position = Vector2((SW - bw) / 2.0, 72.0)
+
+	var sb = StyleBoxFlat.new()
+	sb.set_corner_radius_all(4)
+	sb.bg_color = Color(0.08, 0.06, 0.14, 0.96)
+	sb.border_width_left = 2
+	sb.border_width_top = 2
+	sb.border_width_right = 2
+	sb.border_width_bottom = 2
+	sb.border_color = Color(0.45, 0.85, 1.0)
+	sb.shadow_color = Color(0.20, 0.60, 1.0, 0.5)
+	sb.shadow_size = 12
+	banner.add_theme_stylebox_override("panel", sb)
+
+	var vb = VBoxContainer.new()
+	vb.alignment = BoxContainer.ALIGNMENT_CENTER
+	vb.add_theme_constant_override("separation", 2)
+	banner.add_child(vb)
+
+	var title = Label.new()
+	title.text = "🌟 RESONANCE SURGE MAXED!"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 12)
+	title.modulate = Color(0.45, 0.90, 1.0)
+	if _cinzel_font:
+		title.add_theme_font_override("font", _cinzel_font)
+	vb.add_child(title)
+
+	var sub = Label.new()
+	sub.text = "All Elemental Attacks Empowered: +20% Damage"
+	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	sub.add_theme_font_size_override("font_size", 9)
+	sub.modulate = Color(1.0, 0.92, 0.70)
+	vb.add_child(sub)
+
+	add_child(banner)
+
+	banner.modulate = Color(1, 1, 1, 0)
+	banner.position.y = 52.0
+	var tween = create_tween().set_parallel(true)
+	tween.tween_property(banner, "modulate:a", 1.0, 0.25)
+	tween.tween_property(banner, "position:y", 72.0, 0.25).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+
+	var fade_tween = create_tween()
+	fade_tween.tween_interval(2.2)
+	fade_tween.tween_property(banner, "modulate:a", 0.0, 0.4)
+	fade_tween.tween_callback(banner.queue_free)

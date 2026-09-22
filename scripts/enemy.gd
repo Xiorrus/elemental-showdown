@@ -18,6 +18,7 @@ var stamina: int = 100
 var max_stamina: int = 100
 var agility: int = 24
 var dexterity: int = 26
+var defense: int = 20
 var base_speed: int = 2
 var moves_remaining: int = 0
 var stamina_cost_per_tile: int = 10
@@ -87,6 +88,7 @@ func apply_element_stats(elem: String = ""):
 		max_stamina = edata.get("base_stamina", 100)
 		agility     = edata.get("base_agility", 24)
 		dexterity   = edata.get("base_dexterity", 26)
+		defense     = edata.get("base_defense", 20)
 		hp          = max_hp
 		mp          = max_mp
 		stamina     = max_stamina
@@ -188,7 +190,55 @@ func apply_distance_falloff(base_damage: float, distance: int, optimal_range: in
 		return base_damage * clamp(1.0 - falloff, 0.20, 1.0)
 	return base_damage
 
-func take_damage(amount: int, attacker_pos: Vector2 = Vector2.ZERO, attacker_dex: int = 20, skill_acc: int = 90, is_unavoidable: bool = false):
+func apply_knockback(source_pos: Vector2, distance_tiles: int = 1) -> bool:
+	var diff = position - source_pos
+	var dir_x = 0
+	var dir_y = 0
+	if abs(diff.x) >= abs(diff.y):
+		dir_x = 1 if diff.x >= 0 else -1
+	else:
+		dir_y = 1 if diff.y >= 0 else -1
+
+	var cur_col = int(floor(position.x / TILE_SIZE))
+	var cur_row = int(floor(position.y / TILE_SIZE))
+	var target_col = cur_col + (dir_x * distance_tiles)
+	var target_row = cur_row + (dir_y * distance_tiles)
+
+	var hit_wall = (target_col < 0 or target_col >= 18 or target_row < 0 or target_row >= 10)
+	var hit_obstacle = false
+	if not hit_wall and is_inside_tree():
+		for group in ["players", "enemies"]:
+			for node in get_tree().get_nodes_in_group(group):
+				if is_instance_valid(node) and node != self and ("hp" not in node or node.hp > 0):
+					var nc = int(floor(node.position.x / TILE_SIZE))
+					var nr = int(floor(node.position.y / TILE_SIZE))
+					if nc == target_col and nr == target_row:
+						hit_obstacle = true
+						break
+
+	if hit_wall or hit_obstacle:
+		print("[Enemy] Knocked into wall/obstacle at (%d, %d)! Collision shock!" % [target_col, target_row])
+		if ui and ui.has_method("spawn_damage_popup"):
+			ui.spawn_damage_popup(position, "COLLISION SHOCK! (+12)", "damage")
+		if ui and ui.has_method("log_action"):
+			ui.log_action("💥 [Enemy] Collided with obstacle! Took 12 collision damage!")
+		take_damage(12, Vector2.ZERO, 30, 100, true)
+		if sprite:
+			var tw = create_tween()
+			tw.tween_property(sprite, "position", Vector2(dir_x * 8, dir_y * 8), 0.05)
+			tw.tween_property(sprite, "position", Vector2.ZERO, 0.05)
+		return false
+	else:
+		var new_pos = Vector2(target_col * TILE_SIZE + TILE_SIZE / 2, target_row * TILE_SIZE + TILE_SIZE / 2)
+		var tw = create_tween()
+		tw.tween_property(self, "position", new_pos, 0.15).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		print("[Enemy] Knocked back to (%d, %d)" % [target_col, target_row])
+		return true
+
+func take_damage(amount: int, attacker_pos: Vector2 = Vector2.ZERO, attacker_dex: int = 20, skill_acc: int = 90, is_unavoidable: bool = false, attacker_node: Node2D = null, skill_elem: String = ""):
+	var final_amount = amount
+	var hit_angle = "front"
+
 	if not is_unavoidable and attacker_pos != Vector2.ZERO:
 		var res = calculate_directional_hit(attacker_pos, attacker_dex, skill_acc)
 		if not res["is_hit"]:
@@ -196,20 +246,56 @@ func take_damage(amount: int, attacker_pos: Vector2 = Vector2.ZERO, attacker_dex
 			if ui and ui.has_method("spawn_damage_popup"):
 				ui.spawn_damage_popup(position, "EVADED [%s]" % res["angle"].to_upper(), "status")
 			return 0
+		hit_angle = res["angle"]
 
-	hp -= amount
+	# Directional Critical & Braced Block / Riposte
+	if hit_angle == "rear":
+		final_amount = int(round(final_amount * 1.35))
+		if ui and ui.has_method("spawn_damage_popup"):
+			ui.spawn_damage_popup(position, "CRITICAL BACKSTAB! (+35%)", "status")
+	elif hit_angle == "front" and is_braced_guard:
+		final_amount = int(round(final_amount * 0.65))
+		if ui and ui.has_method("spawn_damage_popup"):
+			ui.spawn_damage_popup(position, "BRACED BLOCK (-35%)", "status")
+		if attacker_node != null and is_instance_valid(attacker_node) and attacker_node.has_method("take_damage"):
+			var dist_to_atk = (abs(attacker_node.position.x - position.x) + abs(attacker_node.position.y - position.y)) / TILE_SIZE
+			if dist_to_atk <= 1.5:
+				print("[Enemy] Riposte counter against %s!" % attacker_node.name)
+				if ui and ui.has_method("spawn_damage_popup"):
+					ui.spawn_damage_popup(attacker_node.position, "RIPOSTE COUNTER!", "status")
+				if ui and ui.has_method("log_action"):
+					ui.log_action("⚔️ [Enemy] Braced Guard ripostes %s for 15 dmg!" % attacker_node.name)
+				attacker_node.take_damage(15, Vector2.ZERO, 30, 100, true)
+
+	# Elemental Affinity & Weakness Exploitation
+	if skill_elem != "" and element_db and element_db.has_method("get_elemental_multiplier"):
+		var mult = element_db.get_elemental_multiplier(skill_elem, element)
+		if mult > 1.0:
+			final_amount = int(round(final_amount * mult))
+			if ui and ui.has_method("spawn_damage_popup"):
+				ui.spawn_damage_popup(position, "WEAKNESS HIT! (+25%)", "status")
+		elif mult < 1.0:
+			final_amount = int(round(final_amount * mult))
+			if ui and ui.has_method("spawn_damage_popup"):
+				ui.spawn_damage_popup(position, "RESISTED (-15%)", "status")
+
+	hp -= final_amount
 	hp = max(hp, 0)
-	print("[Enemy] Took %d damage → HP: %d/%d" % [amount, hp, max_hp])
+	print("[Enemy] Took %d damage → HP: %d/%d" % [final_amount, hp, max_hp])
 	if sprite:
 		var tw = create_tween()
 		tw.tween_property(sprite, "modulate", Color(2.5, 0.4, 0.4), 0.08)
 		tw.tween_property(sprite, "modulate", Color.WHITE, 0.08)
 	if ui and ui.has_method("spawn_damage_popup"):
-		ui.spawn_damage_popup(position, amount, "damage")
+		ui.spawn_damage_popup(position, final_amount, "damage", skill_elem)
 	if ui:
 		ui.update_enemy_stats(hp, max_hp, mp, max_mp, stamina, max_stamina)
 	if hp <= 0:
 		print("[Enemy] Defeated!")
+		if ui and ui.has_method("trigger_screen_shake"):
+			ui.trigger_screen_shake(12.0, 0.35)
+		if ui and ui.has_method("trigger_hit_stop"):
+			ui.trigger_hit_stop(60.0)
 		if battle_manager and battle_manager.has_method("record_knockout"):
 			battle_manager.record_knockout(self)
 		# Award XP to player
@@ -285,17 +371,21 @@ func take_turn():
 		return
 	moves_remaining = base_speed
 
-	var target_player = get_closest_player_target()
+	var target_player = get_best_tactical_target()
 	if target_player != null:
 		var diff = target_player.position - position
 		var distance = (abs(diff.x) + abs(diff.y)) / TILE_SIZE
 		var can_reach = false
+		var optimal_spacing = false
 		for ability in ability_pool:
-			if distance <= ability.get("range", 0) and mp >= ability.get("mp_cost", 0):
+			var rng = ability.get("range", 0)
+			if distance <= rng and mp >= ability.get("mp_cost", 0):
 				can_reach = true
+				if rng >= 3 and distance >= 2:
+					optimal_spacing = true
 				break
-		if can_reach:
-			print("[Enemy] Target within ability range (dist: %.0f) — skipping movement." % distance)
+		if can_reach and (optimal_spacing or distance <= 2):
+			print("[Enemy] Target within ability range (dist: %.0f) — holding tactical spacing." % distance)
 			_act()
 			return
 
@@ -323,6 +413,36 @@ func get_closest_player_target() -> Node2D:
 			closest = t
 	return closest
 
+func get_best_tactical_target() -> Node2D:
+	var targets = get_player_targets()
+	if targets.is_empty():
+		return null
+	if targets.size() == 1:
+		return targets[0]
+
+	var best_target: Node2D = null
+	var best_score: float = -999.0
+	for t in targets:
+		var d = (abs(position.x - t.position.x) + abs(position.y - t.position.y)) / TILE_SIZE
+		var t_hp = float(t.hp) if "hp" in t else 100.0
+		var t_max = float(t.max_hp) if "max_hp" in t else 100.0
+		var hp_ratio = t_hp / max(1.0, t_max)
+
+		var score = 100.0 - (d * 10.0)
+		if hp_ratio <= 0.35:
+			score += 50.0  # Focus-fire vulnerable target
+		if "element" in t and element_db and element_db.has_method("is_elemental_weakness"):
+			if element_db.is_elemental_weakness(element, t.element):
+				score += 30.0  # Elemental weakness matchup advantage
+		if "status_effects" in t and not t.status_effects.is_empty():
+			score += 15.0
+
+		if score > best_score:
+			best_score = score
+			best_target = t
+
+	return best_target if best_target else targets[0]
+
 func _find_lethal_action() -> Dictionary:
 	var targets = get_player_targets()
 	var candidates: Array = []
@@ -336,24 +456,30 @@ func _find_lethal_action() -> Dictionary:
 			var cost: int = ability.get("mp_cost", 0)
 			var rng: int = ability.get("range", 0)
 			var dmg: int = ability.get("damage", 0)
+			var ab_elem = ability.get("element", element)
+			var mult = 1.0
+			if "element" in target and element_db and element_db.has_method("get_elemental_multiplier"):
+				mult = element_db.get_elemental_multiplier(ab_elem, target.element)
+			var eff_dmg = int(round(dmg * mult))
 
 			# Must afford MP, be in range, deal strictly positive damage, and deal >= target HP
-			if mp >= cost and distance_to_target <= rng and dmg > 0 and dmg >= target_hp:
+			if mp >= cost and distance_to_target <= rng and eff_dmg > 0 and eff_dmg >= target_hp:
 				candidates.append({
 					"ability": ability,
-					"target": target
+					"target": target,
+					"effective_dmg": eff_dmg
 				})
 
 	if candidates.is_empty():
 		return {}
 
-	# If multiple lethal abilities exist, select the one with the lowest MP cost (resource conservation; break ties with higher damage)
+	# If multiple lethal abilities exist, select lowest MP cost, break ties with higher damage
 	candidates.sort_custom(func(a, b):
 		var cost_a = a["ability"].get("mp_cost", 0)
 		var cost_b = b["ability"].get("mp_cost", 0)
 		if cost_a != cost_b:
 			return cost_a < cost_b
-		return a["ability"].get("damage", 0) > b["ability"].get("damage", 0)
+		return a["effective_dmg"] > b["effective_dmg"]
 	)
 
 	return candidates[0]
@@ -431,6 +557,7 @@ func _act():
 	if not lethal_action.is_empty():
 		var chosen = lethal_action["ability"]
 		var target = lethal_action["target"]
+		var ab_elem = chosen.get("element", element)
 		mp -= chosen["mp_cost"]
 		mp = max(mp, 0)
 
@@ -439,12 +566,17 @@ func _act():
 
 		var damage = chosen["damage"]
 		if damage > 0 and target.has_method("take_damage"):
-			target.take_damage(damage, position, dexterity, chosen.get("accuracy", 90))
+			target.take_damage(damage, position, dexterity, chosen.get("accuracy", 90), false, self, ab_elem)
 
 		# Apply status effect if any
 		var lethal_effect = chosen.get("effect", "")
 		if lethal_effect != "" and target.has_method("apply_status"):
 			target.apply_status(lethal_effect, 2)
+		if lethal_effect == "knockback" and target.has_method("apply_knockback"):
+			target.apply_knockback(position, 1)
+
+		if battle_manager and battle_manager.has_method("register_elemental_action"):
+			battle_manager.register_elemental_action(self, ab_elem, target)
 
 		print("[Enemy] Lethal Action Used: %s | Dmg: %d | Effect: %s | MP: %d/%d" % [chosen["name"], damage, lethal_effect, mp, max_mp])
 		if ui:
@@ -453,8 +585,29 @@ func _act():
 		_end_turn()
 		return
 
-	# 2. Fall back to default combat ordering (highest damage among affordable in-range abilities)
-	var target_player = get_closest_player_target()
+	# 2. Support / Defense: low HP recovery or barrier
+	if hp <= int(max_hp * 0.40):
+		for ability in ability_pool:
+			if mp >= ability.get("mp_cost", 0):
+				var eff = ability.get("effect", "")
+				var dmg = ability.get("damage", 0)
+				if dmg < 0: # Healing ability like Aqua_Mend
+					mp -= ability["mp_cost"]
+					heal(abs(dmg))
+					if ui:
+						ui.log_action("[Enemy] [Sustain] %s recovered %d HP!" % [ability["name"], abs(dmg)])
+					_end_turn()
+					return
+				elif eff == "barrier" or ability.get("name") == "Stone Plating":
+					mp -= ability["mp_cost"]
+					apply_status("barrier", 3, 20.0)
+					if ui:
+						ui.log_action("[Enemy] [Defense] %s activated barrier!" % ability["name"])
+					_end_turn()
+					return
+
+	# 3. Tactical Ability Selection
+	var target_player = get_best_tactical_target()
 	if target_player == null:
 		_end_turn()
 		return
@@ -474,11 +627,29 @@ func _act():
 		_end_turn()
 		return
 
-	# Sort by highest damage
-	usable.sort_custom(func(a, b):
-		return a["damage"] > b["damage"]
+	# Score usable abilities based on damage, weakness exploitation, and disruption
+	var scored_usable = []
+	for ab in usable:
+		var dmg = float(ab.get("damage", 0))
+		var ab_elem = ab.get("element", element)
+		var t_elem = target_player.element if "element" in target_player else ""
+		var mult = 1.0
+		if element_db and element_db.has_method("get_elemental_multiplier"):
+			mult = element_db.get_elemental_multiplier(ab_elem, t_elem)
+		var score = dmg * mult
+
+		var eff = ab.get("effect", "")
+		if eff in ["stun", "freeze", "control", "blind", "knockback"]:
+			score += 18.0
+
+		scored_usable.append({"ability": ab, "score": score})
+
+	scored_usable.sort_custom(func(a, b):
+		return a["score"] > b["score"]
 	)
-	var chosen = usable[0]
+
+	var chosen = scored_usable[0]["ability"]
+	var ab_elem = chosen.get("element", element)
 	mp -= chosen["mp_cost"]
 	mp = max(mp, 0)
 
@@ -487,12 +658,17 @@ func _act():
 
 	var damage = chosen["damage"]
 	if damage > 0 and target_player.has_method("take_damage"):
-		target_player.take_damage(damage, position, dexterity, chosen.get("accuracy", 90))
+		target_player.take_damage(damage, position, dexterity, chosen.get("accuracy", 90), false, self, ab_elem)
 
 	# Apply status effect if any
 	var effect = chosen.get("effect", "")
 	if effect != "" and target_player.has_method("apply_status"):
 		target_player.apply_status(effect, 2)
+	if effect == "knockback" and target_player.has_method("apply_knockback"):
+		target_player.apply_knockback(position, 1)
+
+	if battle_manager and battle_manager.has_method("register_elemental_action"):
+		battle_manager.register_elemental_action(self, ab_elem, target_player)
 
 	print("[Enemy] Used: %s | Dmg: %d | Effect: %s | MP: %d/%d" % [chosen["name"], damage, effect, mp, max_mp])
 	if ui:

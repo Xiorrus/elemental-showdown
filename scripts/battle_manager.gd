@@ -28,6 +28,12 @@ var knocked_out_units: Array = []
 # Tiger's Mouth Blitz Steal
 var is_blitz_active: bool = false
 
+# Elemental Resonance & Live Combo Gauge
+var resonance_gauge: int = 0
+var max_resonance: int = 100
+var team_resonance_buff: bool = false
+var recent_elemental_actions: Array = []
+
 signal battle_ended(result)  # "victory" or "defeat"
 
 func _ready():
@@ -70,6 +76,72 @@ func record_knockout(target_node: Node2D):
 		if ui and ui.has_method("update_squad_bar"):
 			ui.update_squad_bar()
 		check_battle_end_conditions()
+
+# ──────────────────────────────────────────────
+#  ELEMENTAL RESONANCE & LIVE FUSION COMBOS
+# ──────────────────────────────────────────────
+func register_elemental_action(caster: Node2D, element_key: String, target: Node2D = null) -> Dictionary:
+	var elem = element_key.to_lower()
+	if elem.is_empty():
+		return {}
+
+	var reaction = check_elemental_fusion(elem, target)
+	recent_elemental_actions.append({"caster": caster, "element": elem, "target": target})
+	if recent_elemental_actions.size() > 6:
+		recent_elemental_actions.pop_front()
+
+	var gauge_gain = 25 if not reaction.is_empty() else 10
+	resonance_gauge = min(max_resonance, resonance_gauge + gauge_gain)
+
+	var ui = get_parent().get_node_or_null("UI") if get_parent() else null
+	if resonance_gauge >= max_resonance:
+		resonance_gauge = 0
+		team_resonance_buff = true
+		print("[BattleManager] 🌟 RESONANCE SURGE! Next team attacks deal +20% damage!")
+		if ui and ui.has_method("log_action"):
+			ui.log_action("🌟 [RESONANCE SURGE] Gauge maxed! Team empowered with +20% damage boost!")
+		if ui and ui.has_method("show_resonance_banner"):
+			ui.show_resonance_banner()
+		elif ui and ui.has_method("spawn_damage_popup") and caster:
+			ui.spawn_damage_popup(caster.position, "RESONANCE SURGE (+20%)", "status")
+
+	return reaction
+
+func check_elemental_fusion(new_elem: String, target: Node2D) -> Dictionary:
+	if recent_elemental_actions.is_empty():
+		return {}
+
+	var last_action = recent_elemental_actions.back()
+	var prev_elem = last_action.get("element", "")
+	if prev_elem.is_empty() or prev_elem == new_elem:
+		return {}
+
+	var edata = get_node_or_null("/root/ElementData")
+	var fusion_info = edata.get_fusion_info(prev_elem, new_elem) if edata else {}
+	if fusion_info.is_empty():
+		return {}
+
+	var f_name = fusion_info.get("name", "Fusion")
+	print("[BattleManager] ⚡ ELEMENTAL FUSION TRIGGERED: %s (%s + %s)" % [f_name, prev_elem, new_elem])
+	var ui = get_parent().get_node_or_null("UI") if get_parent() else null
+	if ui and ui.has_method("log_action"):
+		ui.log_action("⚡ [FUSION] %s activated! (%s + %s)" % [f_name, prev_elem.capitalize(), new_elem.capitalize()])
+	var bonus_dmg = 12
+	if ui and ui.has_method("show_fusion_banner"):
+		ui.show_fusion_banner(f_name, prev_elem, new_elem, bonus_dmg)
+
+	if target and is_instance_valid(target) and target.has_method("take_damage"):
+		target.take_damage(bonus_dmg, Vector2.ZERO, 30, 100, true)
+		if ui and ui.has_method("spawn_damage_popup"):
+			ui.spawn_damage_popup(target.position, "FUSION: %s (+%d)" % [f_name, bonus_dmg], "status")
+
+	return fusion_info
+
+func consume_resonance_buff() -> bool:
+	if team_resonance_buff:
+		team_resonance_buff = false
+		return true
+	return false
 
 func substitute_fighter(outgoing_node: Node2D, incoming_data: Dictionary = {}) -> bool:
 	if not can_substitute(outgoing_node):
