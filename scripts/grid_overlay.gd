@@ -60,21 +60,23 @@ func _unhandled_input(event):
 		return
 
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+		if current_mode == Mode.ATTACK:
+			if valid_attack_tiles.has(hovered_tile):
+				emit_signal("attack_tile_clicked", hovered_tile)
+				get_viewport().set_input_as_handled()
+				return
+		elif current_mode == Mode.MOVE:
+			if valid_move_tiles.has(hovered_tile):
+				emit_signal("move_tile_clicked", hovered_tile, valid_move_tiles[hovered_tile])
+				get_viewport().set_input_as_handled()
+				return
+
 		# Check if player clicked directly on an allied squadmate to switch control
 		var clicked_ally = get_ally_at_tile(hovered_tile)
 		if clicked_ally != null:
 			emit_signal("ally_clicked", clicked_ally)
 			get_viewport().set_input_as_handled()
 			return
-
-		if current_mode == Mode.MOVE:
-			if valid_move_tiles.has(hovered_tile):
-				emit_signal("move_tile_clicked", hovered_tile, valid_move_tiles[hovered_tile])
-				get_viewport().set_input_as_handled()
-		elif current_mode == Mode.ATTACK:
-			if valid_attack_tiles.has(hovered_tile):
-				emit_signal("attack_tile_clicked", hovered_tile)
-				get_viewport().set_input_as_handled()
 
 func get_ally_at_tile(tile: Vector2i) -> Node2D:
 	if is_inside_tree():

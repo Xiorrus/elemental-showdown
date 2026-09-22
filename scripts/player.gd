@@ -646,10 +646,15 @@ func use_artifact():
 #  MOVEMENT & GRID SELECTION
 # ──────────────────────────────────────────────
 
+func is_active_unit() -> bool:
+	if battle_manager == null:
+		return true
+	if "active_player_unit" in battle_manager and battle_manager.active_player_unit != null:
+		return battle_manager.active_player_unit == self
+	return true
+
 func _unhandled_input(event):
-	if is_animating or battle_manager == null:
-		return
-	if "active_player_unit" in battle_manager and battle_manager.active_player_unit != null and battle_manager.active_player_unit != self:
+	if is_animating or battle_manager == null or not is_active_unit():
 		return
 
 	# Right click advances to next phase anywhere on screen
@@ -713,7 +718,7 @@ func _unhandled_input(event):
 			end_turn()
 
 func on_right_mouse_clicked():
-	if is_animating or battle_manager == null:
+	if is_animating or battle_manager == null or not is_active_unit():
 		return
 	if battle_manager.current_state == battle_manager.State.PLAYER_MOVE:
 		print("[Player] Right-clicked: ending movement phase.")
@@ -798,7 +803,7 @@ func get_hovered_enemy(override_mouse_pos: Vector2 = Vector2.INF) -> Node2D:
 	return null
 
 func _process(_delta):
-	if is_animating:
+	if is_animating or not is_active_unit():
 		return
 	var target_enemy: Node2D = get_hovered_enemy()
 	if target_enemy == null:
@@ -812,7 +817,7 @@ func _process(_delta):
 
 
 func on_move_tile_clicked(target_tile: Vector2i, distance: int):
-	if is_animating or battle_manager == null or battle_manager.current_state != battle_manager.State.PLAYER_MOVE:
+	if is_animating or battle_manager == null or battle_manager.current_state != battle_manager.State.PLAYER_MOVE or not is_active_unit():
 		return
 
 	var target_pos = Vector2(target_tile.x * TILE_SIZE + TILE_SIZE * 0.5, target_tile.y * TILE_SIZE + TILE_SIZE * 0.5)
@@ -888,6 +893,8 @@ func select_ability(idx: int):
 		if element_db and element_db.ABILITIES.has(key):
 			var ab = element_db.ABILITIES[key]
 			print("[Player] Selected ability: %s (range: %d)" % [ab["name"], ab["range"]])
+			if not is_active_unit():
+				return
 			if ui:
 				ui.log_action("Skill: %s (Range %d)" % [ab["name"], ab["range"]])
 				ui.highlight_ability_slot(idx)
@@ -898,7 +905,7 @@ func select_ability(idx: int):
 					grid_overlay.show_move_grid(position, moves_remaining)
 
 func _update_attack_range_display():
-	if not grid_overlay or not element_db:
+	if not grid_overlay or not element_db or not is_active_unit():
 		return
 	# Only display attack grid if in PLAYER_ACT phase
 	if battle_manager and battle_manager.current_state != battle_manager.State.PLAYER_ACT:
@@ -913,7 +920,7 @@ func _update_attack_range_display():
 			grid_overlay.show_attack_grid(position, eff_range, shape, get_facing_direction())
 
 func on_attack_tile_clicked(target_tile: Vector2i):
-	if is_animating or battle_manager == null or battle_manager.current_state != battle_manager.State.PLAYER_ACT:
+	if is_animating or battle_manager == null or battle_manager.current_state != battle_manager.State.PLAYER_ACT or not is_active_unit():
 		return
 
 	# Face towards clicked tile
@@ -1145,6 +1152,8 @@ func start_turn():
 	regen_mp()
 	tick_status_effects()
 	moves_remaining = get_total_speed()
+	if not is_active_unit():
+		return
 	if ui:
 		ui.update_moves(moves_remaining)
 		ui.update_player_stats(hp, max_hp, mp, max_mp, stamina, max_stamina)
