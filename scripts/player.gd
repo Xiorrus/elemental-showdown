@@ -358,7 +358,11 @@ func cycle_skill_form(slot_index: int):
 	var eff_mp = int(round(edata.ABILITIES[key]["mp_cost"] * new_info["mp_mult"]))
 
 	if selected_ability_index == slot_index:
-		_update_attack_range_display()
+		if battle_manager and battle_manager.current_state == battle_manager.State.PLAYER_ACT:
+			_update_attack_range_display()
+		elif battle_manager and battle_manager.current_state == battle_manager.State.PLAYER_MOVE:
+			if grid_overlay and moves_remaining > 0:
+				grid_overlay.show_move_grid(position, moves_remaining)
 
 	if ui:
 		ui.update_abilities(equipped_abilities, edata, self)
@@ -657,6 +661,28 @@ func _unhandled_input(event):
 	if battle_manager.current_state == battle_manager.State.PLAYER_MOVE:
 		if event.is_action_pressed("end_move"):
 			end_move_phase()
+		elif event.is_action_pressed("ability_1"):
+			if event.shift_pressed:
+				cycle_skill_form(0)
+			else:
+				select_ability(0)
+		elif event.is_action_pressed("ability_2"):
+			if event.shift_pressed:
+				cycle_skill_form(1)
+			else:
+				select_ability(1)
+		elif event.is_action_pressed("ability_3"):
+			if event.shift_pressed:
+				cycle_skill_form(2)
+			else:
+				select_ability(2)
+		elif event.is_action_pressed("ability_4"):
+			if event.shift_pressed:
+				cycle_skill_form(3)
+			else:
+				select_ability(3)
+		elif event is InputEventKey and event.pressed and not event.echo and (event.keycode == KEY_F or event.keycode == KEY_R):
+			cycle_skill_form(selected_ability_index)
 
 	elif battle_manager.current_state == battle_manager.State.PLAYER_ACT:
 		if event.is_action_pressed("ability_1"):
@@ -865,10 +891,17 @@ func select_ability(idx: int):
 			if ui:
 				ui.log_action("Skill: %s (Range %d)" % [ab["name"], ab["range"]])
 				ui.highlight_ability_slot(idx)
-			_update_attack_range_display()
+			if battle_manager and battle_manager.current_state == battle_manager.State.PLAYER_ACT:
+				_update_attack_range_display()
+			elif battle_manager and battle_manager.current_state == battle_manager.State.PLAYER_MOVE:
+				if grid_overlay and moves_remaining > 0:
+					grid_overlay.show_move_grid(position, moves_remaining)
 
 func _update_attack_range_display():
 	if not grid_overlay or not element_db:
+		return
+	# Only display attack grid if in PLAYER_ACT phase
+	if battle_manager and battle_manager.current_state != battle_manager.State.PLAYER_ACT:
 		return
 	if selected_ability_index < equipped_abilities.size():
 		var key = equipped_abilities[selected_ability_index]
