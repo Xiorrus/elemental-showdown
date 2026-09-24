@@ -377,6 +377,7 @@ var result_label: Label = null
 var result_match_lbl: Label = null
 var result_stats_lbl: Label = null
 var result_energy_lbl: Label = null
+var btn_post_restart: Button = null
 
 # Sub Selection Modal (R2)
 var sub_modal_root:     Control = null
@@ -1551,6 +1552,7 @@ func _build_result_panel():
 		get_tree().reload_current_scene()
 	)
 	btn_vbox.add_child(btn_restart)
+	btn_post_restart = btn_restart
 
 	var btn_main_menu = Button.new()
 	btn_main_menu.text = "Main Menu"
@@ -1570,6 +1572,19 @@ func show_battle_result(victory: bool, xp_gained: int = 60, turns: int = 0):
 
 	var cm = get_node_or_null("/root/CampaignManager")
 	result_modal_root.visible = true
+
+	var is_official = (cm != null and cm.has_active_campaign and cm.has_team and cm.active_match_type in ["league", "championship"])
+	if btn_post_restart != null:
+		if is_official:
+			btn_post_restart.disabled = true
+			btn_post_restart.text = "Result Recorded"
+			btn_post_restart.tooltip_text = "Official league and championship matches cannot be restarted."
+			btn_post_restart.modulate = Color(0.6, 0.6, 0.6, 0.5)
+		else:
+			btn_post_restart.disabled = false
+			btn_post_restart.text = "Restart Match"
+			btn_post_restart.tooltip_text = ""
+			btn_post_restart.modulate = Color(1.0, 1.0, 1.0, 1.0)
 
 	if victory:
 		result_panel.bracket_color = Color(0.95, 0.72, 0.22, 1.0) # Gold

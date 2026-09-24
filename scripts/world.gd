@@ -73,8 +73,13 @@ func _ready():
 		edata = load("res://scripts/element_data.gd").new()
 
 	var m_format = "1v1"
+	var ctx = null
 	if cm and cm.has_active_campaign:
-		if not cm.has_team:
+		if cm.active_match_context != null:
+			ctx = cm.active_match_context
+			var team_sz = ctx.rules.team_size if ctx.rules else 3
+			m_format = "%dv%d" % [team_sz, team_sz]
+		elif not cm.has_team:
 			m_format = "1v1"
 		elif "active_match_format" in cm and cm.active_match_format != "":
 			m_format = cm.active_match_format
@@ -83,6 +88,8 @@ func _ready():
 		else:
 			m_format = "3v3"
 	battle_manager.set_match_format(m_format)
+	if ctx != null and "match_context" in battle_manager:
+		battle_manager.match_context = ctx
 
 	var player_elem = "fire"
 	var player_display_name = "Fire Fighter"
@@ -249,7 +256,7 @@ func _ready():
 				ally_unit.equipped_abilities = a_equipped
 				player_units.append(ally_unit)
 				ally_index += 1
-		else:
+		elif not (cm and cm.has_active_campaign and cm.has_team and cm.active_match_type in ["league", "championship"]):
 			var fallback_allies = [
 				{"name": "Kora", "element": "air", "skills": ["Gale_Step", "Wind"], "pos": Vector2i(2, 3), "stamina": 105, "hp": 80, "mp": 110, "speed": 4, "agility": 38, "dexterity": 28},
 				{"name": "Gaius", "element": "earth", "skills": ["Stone_Plating", "Metal"], "pos": Vector2i(2, 5), "stamina": 120, "hp": 130, "mp": 90, "speed": 2, "agility": 16, "dexterity": 24},
@@ -316,6 +323,17 @@ func _ready():
 			if cm and cm.has_active_campaign and cm.has_team and cm.active_match_type != "street":
 				extra_enemy.apply_career_scaling(cm.league_tier, cm.season_number)
 			enemy_units.append(extra_enemy)
+
+	if cm and cm.has_active_campaign and cm.has_team and cm.active_match_type in ["league", "championship"]:
+		var req_size = 3
+		if ctx != null and ctx.rules != null:
+			req_size = ctx.rules.team_size
+		elif m_format == "5v5":
+			req_size = 5
+		if player_units.size() != req_size or enemy_units.size() != req_size:
+			push_error("[World] Lineup size mismatch for official match: %d players vs %d enemies (required %d)" % [
+				player_units.size(), enemy_units.size(), req_size
+			])
 
 	battle_manager.player_units = player_units
 	battle_manager.enemy_units = enemy_units

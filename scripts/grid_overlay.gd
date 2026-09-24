@@ -22,8 +22,17 @@ var valid_move_tiles: Dictionary = {}    # Vector2i -> int (distance)
 var move_predecessor: Dictionary = {}      # Vector2i -> prior tile on shortest legal path
 var move_origin: Vector2i = Vector2i(-1, -1)
 var valid_attack_tiles: Array = []       # Array of Vector2i
+var danger_intents: Array = []           # Array of AttackIntent (threat zones)
 var hovered_tile: Vector2i = Vector2i(-9999, -9999)
 var _custom_font: Font = null
+
+func set_danger_intents(intents: Array) -> void:
+	danger_intents = intents.duplicate()
+	queue_redraw()
+
+func clear_danger_intents() -> void:
+	danger_intents.clear()
+	queue_redraw()
 
 signal move_tile_clicked(target_tile: Vector2i, distance: int)
 signal attack_tile_clicked(target_tile: Vector2i)
@@ -197,6 +206,30 @@ func clear_grid():
 
 func _draw():
 	var font = _custom_font if _custom_font else ThemeDB.fallback_font
+
+	# ── 1. Enemy Danger Zone Layer (Always visible, distinct pattern & icon) ──
+	for intent in danger_intents:
+		if intent == null:
+			continue
+		if ("is_cancelled" in intent and intent.is_cancelled) or ("is_resolved" in intent and intent.is_resolved):
+			continue
+		var tiles = intent.target_tiles if "target_tiles" in intent else []
+		for tile in tiles:
+			if not is_tile_in_arena(tile):
+				continue
+			var d_rect = Rect2(tile.x * TILE_SIZE + 2, tile.y * TILE_SIZE + 2, TILE_SIZE - 4, TILE_SIZE - 4)
+			# Fill & Hazard Border
+			draw_rect(d_rect, Color(0.9, 0.12, 0.12, 0.28), true)
+			draw_rect(d_rect, Color(1.0, 0.3, 0.2, 0.85), false, 1.5)
+			# Diagonal cross-hatch stripes
+			draw_line(d_rect.position + Vector2(6, 6), d_rect.end - Vector2(6, 6), Color(1.0, 0.35, 0.2, 0.5), 1.5)
+			draw_line(Vector2(d_rect.position.x + 6, d_rect.end.y - 6), Vector2(d_rect.end.x - 6, d_rect.position.y + 6), Color(1.0, 0.35, 0.2, 0.5), 1.5)
+			# Threat warning badge with countdown
+			if font:
+				var cd = intent.rounds_remaining if "rounds_remaining" in intent else 1
+				var cd_text = "! %d" % cd
+				var cd_pos = Vector2(tile.x * TILE_SIZE + (TILE_SIZE / 2.0) - 8, tile.y * TILE_SIZE + (TILE_SIZE / 2.0) + 5)
+				draw_string(font, cd_pos, cd_text, HORIZONTAL_ALIGNMENT_CENTER, -1, 13, Color(1.0, 0.95, 0.8, 0.95))
 
 	if current_mode == Mode.MOVE:
 		for tile in valid_move_tiles.keys():

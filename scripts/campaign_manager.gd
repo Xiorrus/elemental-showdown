@@ -15,6 +15,11 @@ const MAX_ROSTER_SIZE = 10
 const RECRUITMENT_WINS_THRESHOLD = 3
 const SeasonCalendarScript = preload("res://scripts/season_calendar.gd")
 const ScoutingCatalogScript = preload("res://scripts/scouting_catalog.gd")
+const MatchRulesScript = preload("res://scripts/match_rules.gd")
+const CompetitionRuleBookScript = preload("res://scripts/competition_rule_book.gd")
+const SeriesStateScript = preload("res://scripts/series_state.gd")
+const MatchContextScript = preload("res://scripts/match_context.gd")
+const GameResultScript = preload("res://scripts/game_result.gd")
 const CLUB_TEAM_ELEMENTS = {
 	"Phoenix Strikers": "fire", "Hydro Vipers": "water",
 	"Gale Force": "air", "Terra Titans": "earth",
@@ -179,6 +184,8 @@ var season_week: int = 0
 var season_start_day: int = 1
 var season_phase: String = "street"
 var championship_state: Dictionary = {}
+var series: Dictionary = {}
+var active_match_context: MatchContext = null
 var season_history: Array = []
 var active_fixture_id: int = -1
 
@@ -467,6 +474,8 @@ func init_new_campaign(p_name_or_cfg = null, p_elem = null, t_name: String = "",
 	season_start_day = 1
 	season_phase = "street" if is_solo else "legacy_tournament"
 	championship_state = {}
+	series = {}
+	active_match_context = null
 	season_history = []
 	active_fixture_id = -1
 
@@ -659,14 +668,17 @@ func _start_club_season() -> bool:
 	var clubs: Array = ScoutingCatalogScript.CLUBS[division_key].duplicate()
 	if not clubs.has(team_name):
 		clubs[0] = team_name
-	var generated: Dictionary = SeasonCalendarScript.new().create_season(clubs, season_number)
+	var generated: Dictionary = SeasonCalendarScript.new().create_season(clubs, season_number, league_tier)
 	if generated.is_empty():
 		return false
 	season_state = generated
+	season_state["league_tier"] = league_tier
 	season_week = 1
 	season_start_day = campaign_day
 	season_phase = "club_regular"
 	championship_state = {}
+	series = {}
+	active_match_context = null
 	active_fixture_id = -1
 	active_match_format = "3v3"
 	current_league = "%s Club League" % CLUB_DIVISION_NAMES.get(league_tier, "National")
@@ -803,6 +815,30 @@ func skip_next_match() -> Dictionary:
 	var match_info = get_next_scheduled_match()
 	if match_info.is_empty() or not match_info.has("season_day"):
 		return {"success": false, "reason": "No scheduled match to skip."}
+
+	if season_phase in ["club_semifinal", "club_final"]:
+		var s_id: String = str(match_info.get("series_id", championship_state.get("player_series_id", "")))
+		var s: SeriesState = series.get(s_id)
+		if s != null and not s.is_complete():
+			campaign_day = maxi(campaign_day, season_start_day + int(match_info["season_day"]) - 1)
+			_sync_season_clock()
+			var is_home: bool = (s.home_team == team_name)
+			var losing_side: int = 1 if is_home else 0
+			var g_id: String = str(match_info.get("game_id", "%s_g%d" % [s.series_id, s.current_game_index + 1]))
+			var res := GameResultScript.new(g_id, s.series_id, losing_side, s.away_team if is_home else s.home_team, team_name, 0)
+			res.is_skipped = true
+			res.xp_awarded = 0
+			res.gold_awarded = 0
+			var out := complete_game(res)
+			return {
+				"success": true,
+				"won": false,
+				"opponent": s.away_team if is_home else s.home_team,
+				"match_type": "championship",
+				"series_score": s.wins.duplicate(),
+				"series_complete": s.is_complete()
+			}
+
 	campaign_day = maxi(campaign_day, season_start_day + int(match_info["season_day"]) - 1)
 	_sync_season_clock()
 	var simulated_win = false
@@ -870,6 +906,40 @@ func get_next_scheduled_match() -> Dictionary:
 					var opponent: String = fixture["away"] if fixture["home"] == team_name else fixture["home"]
 					return _season_match(opponent, fixture["week"], fixture["round"], "league", fixture["id"])
 		elif season_phase in ["club_semifinal", "club_final"]:
+			var player_s_id = str(championship_state.get("player_series_id", ""))
+			var s: SeriesState = series.get(player_s_id)
+			if s == null:
+				for candidate_id in series:
+					var cand = series[candidate_id]
+					if cand is SeriesState and team_name in [cand.home_team, cand.away_team]:
+						s = cand
+						break
+			if s != null and not s.is_complete():
+				var next_day: int = s.get_next_scheduled_day()
+				if next_day > 0:
+					var opponent: String = s.away_team if s.home_team == team_name else s.home_team
+					var week: int = int((next_day - 1) / 7) + 1
+					var match_dict = _season_match(opponent, week, 15 if season_phase == "club_semifinal" else 16, "championship")
+					match_dict["season_day"] = next_day
+					match_dict["days_until"] = maxi(0, season_start_day + next_day - 1 - campaign_day)
+					var calendar := SeasonCalendarScript.new()
+					match_dict["date_label"] = calendar.get_day_entry(season_state, team_name, next_day, career_start_year + season_number - 1).get("date_label", "")
+					match_dict["series_id"] = s.series_id
+					match_dict["game_index"] = s.current_game_index
+					match_dict["game_number"] = s.current_game_index + 1
+					match_dict["game_id"] = "%s_g%d" % [s.series_id, s.current_game_index + 1]
+					match_dict["best_of"] = s.best_of
+					match_dict["series_score"] = s.wins.duplicate()
+					if s.rules != null:
+						match_dict["rules"] = s.rules.to_dict()
+						match_dict["team_size"] = s.rules.team_size
+						match_dict["competition_id"] = s.rules.competition_id
+						match_dict["stage"] = s.rules.stage
+						match_dict["match_format"] = "%dv%d" % [s.rules.team_size, s.rules.team_size]
+					elif season_phase == "club_final" and league_tier >= 3:
+						match_dict["team_size"] = 5
+						match_dict["match_format"] = "5v5"
+					return match_dict
 			var opponent = str(championship_state.get("player_opponent", ""))
 			if not opponent.is_empty():
 				return _season_match(opponent, 30 if season_phase == "club_semifinal" else 32,
@@ -905,7 +975,46 @@ func prepare_match(match_type: String, enemy_element: String, enemy_name: String
 		var scheduled = get_next_scheduled_match()
 		if scheduled.get("enemy_team", "") == enemy_team:
 			active_fixture_id = int(scheduled.get("fixture_id", -1))
-	print("[CampaignManager] Prepared %s match vs %s (%s) from %s" % [match_type, enemy_name, enemy_element, enemy_team])
+
+	var preset_id := "street_duel"
+	var s_id := ""
+	var g_id := ""
+	var s_day := get_season_day()
+	if match_type == "championship" and season_phase in ["club_semifinal", "club_final"]:
+		var p_sid = str(championship_state.get("player_series_id", ""))
+		var s: SeriesState = series.get(p_sid)
+		if s != null:
+			s_id = s.series_id
+			g_id = "%s_g%d" % [s.series_id, s.current_game_index + 1]
+			s_day = s.get_next_scheduled_day()
+			preset_id = s.competition_id
+	elif match_type == "league":
+		preset_id = "city_league" if league_tier == 1 else ("regional_league" if league_tier == 2 else "national_league")
+		g_id = "fixture_%d" % active_fixture_id
+	elif match_type == "friendly":
+		preset_id = "club_friendly"
+		g_id = "friendly_%d" % campaign_day
+	elif match_type == "tournament" or has_team:
+		if active_match_format == "5v5":
+			preset_id = "national_final"
+		elif active_match_format == "1v1":
+			preset_id = "street_duel"
+		else:
+			preset_id = "city_league"
+		g_id = "tournament_%d" % campaign_day
+	else:
+		preset_id = "street_duel"
+		g_id = "street_%d" % campaign_day
+
+	var rules = CompetitionRuleBookScript.get_preset(preset_id)
+	if rules != null:
+		active_match_format = "%dv%d" % [rules.team_size, rules.team_size]
+		var seed_val = (season_number * 1000 + campaign_day * 19 + hash(g_id)) & 0x7FFFFFFF
+		active_match_context = MatchContextScript.new(active_fixture_id, s_id, g_id, s_day, team_name, enemy_team, rules, seed_val, rules.arena_preset)
+
+	print("[CampaignManager] Prepared %s match vs %s (%s) from %s (Format: %s)" % [
+		match_type, enemy_name, enemy_element, enemy_team, active_match_format
+	])
 
 func record_match_result(victory: bool, xp_gained: int = 60) -> int:
 	# Career XP has one owner. Combat reports its outcome here; the player node
@@ -1021,39 +1130,392 @@ func _record_club_round(victory: bool) -> void:
 
 
 func _enter_postseason() -> void:
+	if not season_state.has("league_tier"):
+		season_state["league_tier"] = league_tier
 	var postseason: Dictionary = SeasonCalendarScript.new().get_postseason(season_state)
 	if not postseason.get("ready", false):
 		return
 	championship_state = postseason
 	championship_state["player_opponent"] = ""
 	championship_state["champion"] = ""
-	for pairing in postseason["semifinals"]:
+	championship_state["player_series_id"] = ""
+	championship_state["other_series_id"] = ""
+
+	var semi_preset := "city_semis"
+	if league_tier == 2:
+		semi_preset = "regional_semis"
+	elif league_tier >= 3:
+		semi_preset = "national_semis"
+	var semi_rules := CompetitionRuleBookScript.get_preset(semi_preset)
+
+	for pairing in postseason.get("semifinals", []):
+		var s_id: String = str(pairing.get("series_id", ""))
+		var s_state_dict: Dictionary = pairing.get("series_state", {})
+		var s_inst: SeriesState = null
+		if not s_state_dict.is_empty():
+			s_inst = SeriesStateScript.from_dict(s_state_dict)
+		else:
+			s_inst = SeriesStateScript.new(s_id, semi_preset, pairing["home"], pairing["away"], 3, [199, 202, 205])
+		if s_inst.rules == null:
+			s_inst.rules = semi_rules
+		series[s_id] = s_inst
+
 		if team_name in [pairing["home"], pairing["away"]]:
+			championship_state["player_series_id"] = s_id
 			championship_state["player_opponent"] = pairing["away"] if pairing["home"] == team_name else pairing["home"]
-			break
+		else:
+			championship_state["other_series_id"] = s_id
+
 	if championship_state["player_opponent"].is_empty():
 		_finish_club_season()
 	else:
 		season_phase = "club_semifinal"
 		_set_season_week(29)
+		campaign_day = maxi(campaign_day, season_start_day + 199 - 1)
+		_sync_season_clock()
 
 
 func _record_championship_result(victory: bool) -> void:
-	if season_phase == "club_semifinal":
-		if not victory:
+	var p_sid = str(championship_state.get("player_series_id", ""))
+	var s: SeriesState = series.get(p_sid)
+	if s != null and not s.is_complete():
+		var is_home: bool = (s.home_team == team_name)
+		var win_side: int = 0 if (victory == is_home) else 1
+		var g_id: String = "%s_g%d" % [s.series_id, s.current_game_index + 1]
+		s.record_game(g_id, win_side)
+
+		if not s.is_complete():
+			var next_day: int = s.get_next_scheduled_day()
+			if next_day > 0:
+				campaign_day = maxi(campaign_day, season_start_day + next_day - 1)
+				_sync_season_clock()
+				_set_season_week(int((next_day - 1) / 7) + 1)
+		else:
+			# Clinched!
+			if season_phase == "club_semifinal":
+				if s.get_winner() != team_name:
+					_finish_club_season()
+					return
+				var other_finalist := ""
+				var other_sid = str(championship_state.get("other_series_id", ""))
+				var other_s: SeriesState = series.get(other_sid)
+				if other_s != null:
+					if not other_s.is_complete():
+						simulate_non_player_series(other_s)
+					other_finalist = other_s.get_winner()
+				if other_finalist.is_empty():
+					for pairing in championship_state.get("semifinals", []):
+						if not team_name in [pairing["home"], pairing["away"]]:
+							other_finalist = pairing["home"]
+							break
+				championship_state["player_opponent"] = other_finalist
+				season_phase = "club_final"
+				_set_season_week(31)
+
+				var final_id = "s%d_final" % season_number
+				var final_preset := "city_final"
+				var final_best_of := 3
+				var final_days := [210, 213, 216]
+				if league_tier == 2:
+					final_preset = "regional_final"
+					final_best_of = 3
+					final_days = [210, 213, 216]
+				elif league_tier >= 3:
+					final_preset = "national_final"
+					final_best_of = 5
+					final_days = [210, 213, 216, 220, 223]
+				var final_rules = CompetitionRuleBookScript.get_preset(final_preset)
+				var seeds: Array = championship_state.get("championship_qualifiers", [])
+				var player_idx = seeds.find(team_name)
+				var other_idx = seeds.find(other_finalist)
+				var home = team_name if (player_idx != -1 and (other_idx == -1 or player_idx <= other_idx)) else other_finalist
+				var away = other_finalist if home == team_name else team_name
+				var final_s = SeriesStateScript.new(final_id, final_preset, home, away, final_best_of, final_days)
+				final_s.rules = final_rules
+				series[final_id] = final_s
+				championship_state["player_series_id"] = final_id
+				if final_rules.team_size == 5:
+					active_match_format = "5v5"
+				campaign_day = maxi(campaign_day, season_start_day + 210 - 1)
+				_sync_season_clock()
+			elif season_phase == "club_final":
+				championship_state["champion"] = s.get_winner()
+				_finish_club_season()
+	else:
+		# Fallback legacy behavior
+		if season_phase == "club_semifinal":
+			if not victory:
+				_finish_club_season()
+				return
+			var other_finalist := ""
+			for pairing in championship_state.get("semifinals", []):
+				if not team_name in [pairing["home"], pairing["away"]]:
+					other_finalist = pairing["home"]
+					break
+			championship_state["player_opponent"] = other_finalist
+			season_phase = "club_final"
+			_set_season_week(31)
+		elif season_phase == "club_final":
+			championship_state["champion"] = team_name if victory else championship_state.get("player_opponent", "")
 			_finish_club_season()
-			return
-		var other_finalist := ""
-		for pairing in championship_state.get("semifinals", []):
-			if not team_name in [pairing["home"], pairing["away"]]:
-				other_finalist = pairing["home"] # Higher seed wins the simulated semifinal.
-				break
-		championship_state["player_opponent"] = other_finalist
-		season_phase = "club_final"
-		_set_season_week(31)
-	elif season_phase == "club_final":
-		championship_state["champion"] = team_name if victory else championship_state.get("player_opponent", "")
-		_finish_club_season()
+
+
+func simulate_non_player_series(target_series: SeriesState, seed_val: int = 0) -> void:
+	if target_series == null or target_series.is_complete():
+		return
+	var rng := RandomNumberGenerator.new()
+	if seed_val != 0:
+		rng.seed = seed_val
+	else:
+		rng.seed = (season_number * 1000 + campaign_day * 37 + hash(target_series.series_id)) & 0x7FFFFFFF
+
+	while not target_series.is_complete():
+		var g_idx: int = target_series.current_game_index
+		var g_id: String = "%s_g%d" % [target_series.series_id, g_idx + 1]
+		var winning_side: int = 0 if rng.randf() < 0.5 else 1
+		target_series.record_game(g_id, winning_side, {"simulated": true})
+
+
+func evaluate_judge_decision(home_units: Array, away_units: Array, home_total_damage: float = 0.0, away_total_damage: float = 0.0) -> Dictionary:
+	# 3-step tiebreaker:
+	# 1. Surviving unit count
+	var home_survivors: int = 0
+	var away_survivors: int = 0
+	var home_curr_hp: float = 0.0
+	var home_max_hp: float = 0.0
+	var away_curr_hp: float = 0.0
+	var away_max_hp: float = 0.0
+
+	for u in home_units:
+		var cur_hp = float(u.get("hp") if u is Dictionary else (u.hp if "hp" in u else 0))
+		var m_hp = float(u.get("max_hp") if u is Dictionary else (u.max_hp if "max_hp" in u else 100))
+		home_max_hp += maxi(1, int(m_hp))
+		if cur_hp > 0:
+			home_survivors += 1
+			home_curr_hp += cur_hp
+
+	for u in away_units:
+		var cur_hp = float(u.get("hp") if u is Dictionary else (u.hp if "hp" in u else 0))
+		var m_hp = float(u.get("max_hp") if u is Dictionary else (u.max_hp if "max_hp" in u else 100))
+		away_max_hp += maxi(1, int(m_hp))
+		if cur_hp > 0:
+			away_survivors += 1
+			away_curr_hp += cur_hp
+
+	if home_survivors != away_survivors:
+		var win_side: int = 0 if home_survivors > away_survivors else 1
+		return {
+			"winning_side": win_side,
+			"criterion": "survivors",
+			"home_survivors": home_survivors,
+			"away_survivors": away_survivors,
+			"home_hp_pct": home_curr_hp / maxf(1.0, home_max_hp),
+			"away_hp_pct": away_curr_hp / maxf(1.0, away_max_hp),
+			"home_damage": home_total_damage,
+			"away_damage": away_total_damage
+		}
+
+	# 2. HP fraction
+	var home_hp_pct = home_curr_hp / maxf(1.0, home_max_hp)
+	var away_hp_pct = away_curr_hp / maxf(1.0, away_max_hp)
+	if absf(home_hp_pct - away_hp_pct) > 0.001:
+		var win_side: int = 0 if home_hp_pct > away_hp_pct else 1
+		return {
+			"winning_side": win_side,
+			"criterion": "hp_fraction",
+			"home_survivors": home_survivors,
+			"away_survivors": away_survivors,
+			"home_hp_pct": home_hp_pct,
+			"away_hp_pct": away_hp_pct,
+			"home_damage": home_total_damage,
+			"away_damage": away_total_damage
+		}
+
+	# 3. Total damage dealt
+	if absf(home_total_damage - away_total_damage) > 0.01:
+		var win_side: int = 0 if home_total_damage > away_total_damage else 1
+		return {
+			"winning_side": win_side,
+			"criterion": "damage_dealt",
+			"home_survivors": home_survivors,
+			"away_survivors": away_survivors,
+			"home_hp_pct": home_hp_pct,
+			"away_hp_pct": away_hp_pct,
+			"home_damage": home_total_damage,
+			"away_damage": away_total_damage
+		}
+
+	# Higher seed fallback
+	return {
+		"winning_side": 0,
+		"criterion": "higher_seed",
+		"home_survivors": home_survivors,
+		"away_survivors": away_survivors,
+		"home_hp_pct": home_hp_pct,
+		"away_hp_pct": away_hp_pct,
+		"home_damage": home_total_damage,
+		"away_damage": away_total_damage
+	}
+
+
+func _snapshot_campaign_state() -> Dictionary:
+	return {
+		"player_xp": player_xp,
+		"player_level": player_level,
+		"player_xp_to_next": player_xp_to_next,
+		"unspent_stat_points": unspent_stat_points,
+		"unspent_skill_points": unspent_skill_points,
+		"energy": energy,
+		"is_fatigued": is_fatigued,
+		"gold": gold,
+		"shards": shards,
+		"total_wins": total_wins,
+		"total_losses": total_losses,
+		"win_streak": win_streak,
+		"campaign_day": campaign_day,
+		"season_week": season_week,
+		"season_phase": season_phase,
+		"championship_state": championship_state.duplicate(true),
+		"season_history": season_history.duplicate(true),
+		"series": _serialize_series(),
+		"active_match_context": active_match_context.to_dict() if active_match_context != null else {},
+		"allies": allies.duplicate(true),
+		"national_cup_titles": national_cup_titles,
+		"league_tier": league_tier,
+		"current_league": current_league
+	}
+
+
+func _restore_campaign_snapshot(snap: Dictionary) -> void:
+	player_xp = snap.get("player_xp", player_xp)
+	player_level = snap.get("player_level", player_level)
+	player_xp_to_next = snap.get("player_xp_to_next", player_xp_to_next)
+	unspent_stat_points = snap.get("unspent_stat_points", unspent_stat_points)
+	unspent_skill_points = snap.get("unspent_skill_points", unspent_skill_points)
+	energy = snap.get("energy", energy)
+	is_fatigued = snap.get("is_fatigued", is_fatigued)
+	gold = snap.get("gold", gold)
+	shards = snap.get("shards", shards)
+	total_wins = snap.get("total_wins", total_wins)
+	total_losses = snap.get("total_losses", total_losses)
+	win_streak = snap.get("win_streak", win_streak)
+	campaign_day = snap.get("campaign_day", campaign_day)
+	season_week = snap.get("season_week", season_week)
+	season_phase = snap.get("season_phase", season_phase)
+	championship_state = snap.get("championship_state", {}).duplicate(true)
+	season_history = snap.get("season_history", []).duplicate(true)
+	series = {}
+	var loaded_series: Dictionary = snap.get("series", {})
+	for s_key in loaded_series:
+		series[s_key] = SeriesStateScript.from_dict(loaded_series[s_key])
+	var loaded_ctx: Dictionary = snap.get("active_match_context", {})
+	active_match_context = MatchContextScript.from_dict(loaded_ctx) if not loaded_ctx.is_empty() else null
+	allies = snap.get("allies", allies).duplicate(true)
+	national_cup_titles = snap.get("national_cup_titles", national_cup_titles)
+	league_tier = snap.get("league_tier", league_tier)
+	current_league = snap.get("current_league", current_league)
+	_sync_season_clock()
+
+
+func complete_game(result: GameResult) -> Dictionary:
+	if result == null:
+		return {"success": false, "reason": "Null result provided"}
+	var snapshot := _snapshot_campaign_state()
+
+	var s_id: String = result.series_id
+	if s_id.is_empty():
+		s_id = str(championship_state.get("player_series_id", ""))
+	var s: SeriesState = series.get(s_id)
+	if s == null or s.is_complete():
+		return {"success": false, "reason": "No active series or series already complete"}
+
+	var is_home: bool = (s.home_team == team_name)
+	var victory: bool = (result.winning_side == 0) if is_home else (result.winning_side == 1)
+
+	var recorded: bool = s.record_game(result.game_id, result.winning_side, {
+		"judge_score": result.judge_score,
+		"is_skipped": result.is_skipped,
+		"turns_played": result.turns_played
+	})
+	if not recorded:
+		_restore_campaign_snapshot(snapshot)
+		return {"success": false, "reason": "Failed to record game on series"}
+
+	if victory:
+		total_wins += 1
+		win_streak += 1
+	else:
+		total_losses += 1
+		win_streak = 0
+
+	if not result.is_skipped:
+		var credited_xp := maxi(0, result.xp_awarded if result.xp_awarded > 0 else (60 if victory else 24))
+		player_xp += credited_xp
+		gold += result.gold_awarded if result.gold_awarded > 0 else (200 if victory else 40)
+		_check_level_up()
+		consume_energy(20)
+
+	if not s.is_complete():
+		var next_day: int = s.get_next_scheduled_day()
+		if next_day > 0:
+			campaign_day = maxi(campaign_day, season_start_day + next_day - 1)
+			_sync_season_clock()
+			_set_season_week(int((next_day - 1) / 7) + 1)
+	else:
+		# Series clinched
+		if season_phase == "club_semifinal":
+			if s.get_winner() != team_name:
+				_finish_club_season()
+			else:
+				var other_finalist := ""
+				var other_sid = str(championship_state.get("other_series_id", ""))
+				var other_s: SeriesState = series.get(other_sid)
+				if other_s != null:
+					if not other_s.is_complete():
+						simulate_non_player_series(other_s)
+					other_finalist = other_s.get_winner()
+				if other_finalist.is_empty():
+					for pairing in championship_state.get("semifinals", []):
+						if not team_name in [pairing["home"], pairing["away"]]:
+							other_finalist = pairing["home"]
+							break
+				championship_state["player_opponent"] = other_finalist
+				season_phase = "club_final"
+				_set_season_week(31)
+
+				var final_id = "s%d_final" % season_number
+				var final_rules = CompetitionRuleBookScript.get_preset("city_final")
+				var final_days = [210, 213, 216, 220, 223]
+				var seeds: Array = championship_state.get("championship_qualifiers", [])
+				var player_idx = seeds.find(team_name)
+				var other_idx = seeds.find(other_finalist)
+				var home = team_name if (player_idx != -1 and (other_idx == -1 or player_idx <= other_idx)) else other_finalist
+				var away = other_finalist if home == team_name else team_name
+				var final_s = SeriesStateScript.new(final_id, "city_final", home, away, 5, final_days)
+				final_s.rules = final_rules
+				series[final_id] = final_s
+				championship_state["player_series_id"] = final_id
+				campaign_day = maxi(campaign_day, season_start_day + 210 - 1)
+				_sync_season_clock()
+		elif season_phase == "club_final":
+			championship_state["champion"] = s.get_winner()
+			_finish_club_season()
+
+	active_match_context = null
+
+	if not save_campaign():
+		_restore_campaign_snapshot(snapshot)
+		return {"success": false, "reason": "Save failed, state rolled back"}
+
+	return {
+		"success": true,
+		"series_id": s.series_id,
+		"is_complete": s.is_complete(),
+		"winner": s.get_winner(),
+		"series_score": s.wins.duplicate(),
+		"game_id": result.game_id,
+		"next_day": s.get_next_scheduled_day() if not s.is_complete() else 0
+	}
 
 
 func _finish_club_season() -> void:
@@ -1391,6 +1853,8 @@ func save_campaign(target_path: String = "") -> bool:
 		"season_phase": season_phase,
 		"championship_state": championship_state,
 		"season_history": season_history,
+		"series": _serialize_series(),
+		"active_match_context": active_match_context.to_dict() if active_match_context != null else {},
 	}
 
 	var json_string = JSON.stringify(data, "\t")
@@ -1512,7 +1976,7 @@ func _is_save_data_valid(data: Dictionary) -> bool:
 		TYPE_STRING: ["player_name", "player_element", "player_nationality", "recruitment_offer_club", "active_match_format", "designated_sub", "current_league", "team_name", "career_team", "season_phase", "campaign_id"],
 		TYPE_BOOL: ["has_active_campaign", "is_fatigued", "bench_risk", "has_team", "recruitment_offer_pending", "pending_element_choice", "primordial_choice_pending", "world_cup_reward_pending"],
 		TYPE_FLOAT: ["player_level", "player_xp", "player_xp_to_next", "player_speed", "player_agility", "player_dexterity", "player_stamina", "player_mana", "player_potency", "player_defense", "unspent_stat_points", "unspent_skill_points", "energy", "league_round", "total_wins", "total_losses", "league_tier", "street_wins", "gold", "shards", "campaign_day", "career_start_year", "win_streak", "season_number", "season_week", "season_start_day", "national_cup_titles", "continental_cup_titles", "national_world_cup_titles", "club_world_cup_titles", "primordial_skill_permits"],
-		TYPE_DICTIONARY: ["starting_formation", "appearance", "scouting_intel", "skill_variations", "unlocked_skill_forms", "season_state", "championship_state", "training_progress", "training_gains"],
+		TYPE_DICTIONARY: ["starting_formation", "appearance", "scouting_intel", "skill_variations", "unlocked_skill_forms", "season_state", "championship_state", "training_progress", "training_gains", "series", "active_match_context"],
 		TYPE_ARRAY: ["equipped_abilities", "unlocked_abilities", "allies", "tournament_schedule", "known_fighters", "unlocked_elements", "season_history", "primordial_choices"]
 	}
 	for kind in schema:
@@ -1788,6 +2252,19 @@ func load_campaign(source_path: String = "") -> bool:
 	championship_state = data.get("championship_state", {}).duplicate(true)
 	season_history = data.get("season_history", []).duplicate(true)
 	active_fixture_id = -1
+	series = {}
+	var loaded_series: Dictionary = data.get("series", {})
+	for s_key in loaded_series:
+		var s_data = loaded_series[s_key]
+		if s_data is Dictionary:
+			var s_inst := SeriesStateScript.from_dict(s_data)
+			if s_inst != null:
+				series[s_key] = s_inst
+	active_match_context = null
+	var loaded_ctx: Dictionary = data.get("active_match_context", {})
+	if not loaded_ctx.is_empty():
+		active_match_context = MatchContextScript.from_dict(loaded_ctx)
+	_migrate_legacy_postseason_series()
 	if has_team and season_state.is_empty():
 		# Old four-round tournament saves join the new season without losing
 		# their athlete roster, economy, skill tree or career records.
@@ -1797,6 +2274,36 @@ func load_campaign(source_path: String = "") -> bool:
 
 	print("[CampaignManager] Loaded campaign successfully: %s (Lv %d %s)" % [player_name, player_level, player_element])
 	return true
+
+
+func _serialize_series() -> Dictionary:
+	var result := {}
+	for s_id in series:
+		var s = series[s_id]
+		if s is SeriesState:
+			result[s_id] = s.to_dict()
+		elif s is Dictionary:
+			result[s_id] = s
+	return result
+
+
+func _migrate_legacy_postseason_series() -> void:
+	if not (season_phase in ["club_semifinal", "club_final"]):
+		return
+	if not series.is_empty():
+		return
+	var postseason: Dictionary = SeasonCalendarScript.new().get_postseason(season_state)
+	if postseason.get("ready", false):
+		for s_dict in postseason.get("semifinals", []):
+			var s_id: String = s_dict["series_id"]
+			var s_inst := SeriesStateScript.from_dict(s_dict["series_state"])
+			series[s_id] = s_inst
+			if team_name in [s_dict["home"], s_dict["away"]]:
+				championship_state["player_series_id"] = s_id
+				if not championship_state.has("player_opponent") or str(championship_state["player_opponent"]).is_empty():
+					championship_state["player_opponent"] = s_dict["away"] if s_dict["home"] == team_name else s_dict["home"]
+			else:
+				championship_state["other_series_id"] = s_id
 
 func spend_stat_point(stat_name: String) -> bool:
 	if unspent_stat_points <= 0:
@@ -2329,6 +2836,81 @@ func remove_athlete(ally_name: String) -> bool:
 			allies.remove_at(i)
 			return true
 	return false
+
+## Checks whether the team has enough eligible fighters to meet a team size requirement (default: 5).
+func check_roster_readiness(required_size: int = 5) -> Dictionary:
+	var eligible_count := 0
+	var available_allies: Array = []
+	for a in allies:
+		if not (a is Dictionary):
+			continue
+		var st = str(a.get("status", "Active"))
+		if st in ["Active", "Reserve"]:
+			eligible_count += 1
+			available_allies.append(a.get("name", ""))
+	var is_ready = (eligible_count >= required_size)
+	if eligible_count == 0 and has_active_campaign:
+		eligible_count = 1
+		available_allies.append(player_name)
+	var deficit = maxi(0, required_size - eligible_count)
+	var warning_active = (league_tier >= 3) or (league_tier == 2 and season_week >= 20)
+	var emergency_available = has_team and (eligible_count < required_size)
+	return {
+		"ready": is_ready,
+		"current_count": eligible_count,
+		"required_count": required_size,
+		"deficit": deficit,
+		"warning_active": warning_active,
+		"emergency_available": emergency_available,
+		"eligible_names": available_allies
+	}
+
+## Returns true if the team needs and can sign an emergency fighter for 5v5 readiness.
+func can_sign_emergency_fighter() -> bool:
+	if not has_team:
+		return false
+	var readiness = check_roster_readiness(5)
+	return readiness["deficit"] > 0
+
+## Signs an emergency club loan / free-agent fighter to prevent roster deadlocks.
+func sign_emergency_fighter(tier: int = -1) -> Dictionary:
+	if not has_team:
+		push_warning("[CampaignManager] Cannot sign emergency fighter without a team.")
+		return {}
+	var sign_tier = tier if tier > 0 else clampi(league_tier, 1, 5)
+	var exclude_names: Array = []
+	for a in allies:
+		if a is Dictionary and a.has("name"):
+			exclude_names.append(a["name"])
+	for f in known_fighters:
+		if f is Dictionary and f.has("name"):
+			exclude_names.append(f["name"])
+
+	var new_fighter = generate_fighter(sign_tier, "", exclude_names)
+	new_fighter["career_team"] = team_name
+	new_fighter["status"] = "Active"
+	new_fighter["emergency_loan"] = true
+	allies.append(new_fighter)
+
+	_assign_formation_slot_for_ally(new_fighter["name"])
+
+	print("[CampaignManager] Signed emergency fighter: %s (%s, Lv.%d, %s) to %s." % [
+		new_fighter["name"], new_fighter["element"], new_fighter["level"], new_fighter["role"], team_name
+	])
+	save_campaign()
+	return new_fighter
+
+func _assign_formation_slot_for_ally(ally_name: String) -> void:
+	var default_slots := [Vector2i(3, 4), Vector2i(2, 3), Vector2i(2, 5), Vector2i(1, 4), Vector2i(1, 2)]
+	var occupied := []
+	for k in starting_formation:
+		var pos = starting_formation[k]
+		if pos is Vector2i and pos != Vector2i(-1, -1):
+			occupied.append(pos)
+	for slot in default_slots:
+		if not occupied.has(slot):
+			starting_formation[ally_name] = slot
+			return
 
 func _get_element_data():
 	# Save migration can use a manager that has not been added to the tree yet.

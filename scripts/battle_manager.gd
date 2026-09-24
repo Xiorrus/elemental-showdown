@@ -1,8 +1,13 @@
 extends Node
 
+const AttackIntentScript = preload("res://scripts/attack_intent.gd")
+const ReactionResolverScript = preload("res://scripts/reaction_resolver.gd")
+const ForceMovementResolverScript = preload("res://scripts/force_movement_resolver.gd")
+
 # ──────────────────────────────────────────────
 #  ELEMENTAL SHOWDOWN — Battle Manager
 #  Manages: turn state, win/lose, XP rewards, match post-processing & game loop,
+#  tactical reactions, attack intents, elemental primers, crowd momentum,
 #  anytime substitutions for living combatants, and Blitz Steal interceptions.
 # ──────────────────────────────────────────────
 
@@ -21,6 +26,20 @@ var active_player_unit: Node2D = null
 var grid_overlay: Node2D = null
 var terrain: Node2D = null
 
+# Tactical Combat: Reactions, Intents, Primers
+var reaction_resolver = ReactionResolverScript.new()
+var active_intents: Array = []
+var primers: Dictionary = {}
+
+# Team Crowd Momentum (0-100 each side)
+var player_momentum: int = 0
+var enemy_momentum: int = 0
+var max_momentum: int = 100
+var player_crowd_roar_active: bool = false
+var enemy_crowd_roar_active: bool = false
+var player_empowered: bool = false
+var enemy_empowered: bool = false
+
 # Substitutions
 var match_format: String = "3v3"
 var max_subs: int = 1
@@ -30,8 +49,12 @@ var knocked_out_units: Array = []
 # Tiger's Mouth Blitz Steal
 var is_blitz_active: bool = false
 
-# Elemental Resonance & Live Combo Gauge
-var resonance_gauge: int = 0
+# Elemental Resonance & Live Combo Gauge (backwards compatibility)
+var resonance_gauge: int:
+	get:
+		return player_momentum
+	set(val):
+		player_momentum = clamp(val, 0, max_momentum)
 var max_resonance: int = 100
 var team_resonance_buff: bool = false
 var recent_elemental_actions: Array = []
@@ -71,6 +94,9 @@ func can_substitute(target_node: Node2D) -> bool:
 func record_knockout(target_node: Node2D):
 	if target_node and not knocked_out_units.has(target_node):
 		knocked_out_units.append(target_node)
+		cancel_intents_for(target_node, "ko")
+		if primers.has(target_node):
+			primers.erase(target_node)
 		print("[BattleManager] [KNOCKOUT] %s is down! Slot locked (1 man down)." % target_node.name)
 		var ui = get_parent().get_node_or_null("UI") if get_parent() else null
 		if ui and ui.has_method("log_action"):
@@ -80,32 +106,183 @@ func record_knockout(target_node: Node2D):
 		check_battle_end_conditions()
 
 # ──────────────────────────────────────────────
-#  ELEMENTAL RESONANCE & LIVE FUSION COMBOS
+#  CROWD MOMENTUM SYSTEM (0-100 Per Team)
 # ──────────────────────────────────────────────
-func register_elemental_action(caster: Node2D, element_key: String, target: Node2D = null) -> Dictionary:
+func add_momentum(team: String, amount: int, reason: String = "") -> void:
+	var ui = get_parent().get_node_or_null("UI") if get_parent() else null
+	if team == "player":
+		var old = player_momentum
+		player_momentum = clamp(player_momentum + amount, 0, max_momentum)
+		if old < 50 and player_momentum >= 50:
+			player_crowd_roar_active = true
+			if ui and ui.has_method("log_action"):
+				ui.log_action("🔥 [CROWD ROAR] The crowd roars for your squad! (+1 Movement this round)")
+			if ui and ui.has_method("spawn_damage_popup") and active_player_unit:
+				ui.spawn_damage_popup(active_player_unit.position, "CROWD ROAR (+1 MOVE)", "status")
+		if player_momentum >= max_momentum:
+			team_resonance_buff = true
+			player_empowered = true
+			if ui and ui.has_method("show_resonance_banner"):
+				ui.show_resonance_banner()
+			elif ui and ui.has_method("log_action"):
+				ui.log_action("🌟 [EMPOWERED] Crowd Momentum maxed (100)! Next ability deals +20% damage/healing!")
+		if ui and ui.has_method("update_resonance_bar"):
+			ui.update_resonance_bar(player_momentum, max_momentum)
+	else:
+		var old = enemy_momentum
+		enemy_momentum = clamp(enemy_momentum + amount, 0, max_momentum)
+		if old < 50 and enemy_momentum >= 50:
+			enemy_crowd_roar_active = true
+			if ui and ui.has_method("log_action"):
+				ui.log_action("⚡ [CROWD CHANT] The opposing fans roar! Enemy squad gains +1 Movement!")
+		if enemy_momentum >= max_momentum:
+			enemy_empowered = true
+
+func spend_empowered_moment(team: String) -> bool:
+	if team == "player":
+		if player_momentum >= max_momentum or player_empowered:
+			player_momentum = 0
+			player_empowered = true
+			team_resonance_buff = true
+			var ui = get_parent().get_node_or_null("UI") if get_parent() else null
+			if ui and ui.has_method("update_resonance_bar"):
+				ui.update_resonance_bar(player_momentum, max_momentum)
+			return true
+	else:
+		if enemy_momentum >= max_momentum or enemy_empowered:
+			enemy_momentum = 0
+			enemy_empowered = true
+			return true
+	return false
+
+func consume_empowered_boost(team: String) -> float:
+	if team == "player" and (player_empowered or team_resonance_buff):
+		player_empowered = false
+		team_resonance_buff = false
+		return 0.20
+	elif team == "enemy" and enemy_empowered:
+		enemy_empowered = false
+		return 0.20
+	return 0.0
+
+# ──────────────────────────────────────────────
+#  TELEGRAPHED ATTACK INTENTS
+# ──────────────────────────────────────────────
+func queue_intent(intent) -> void:
+	if intent == null:
+		return
+	active_intents.append(intent)
+	update_danger_overlay()
+
+func cancel_intents_for(target_node: Node2D, reason: String = "displacement") -> void:
+	if target_node == null:
+		return
+	var ui = get_parent().get_node_or_null("UI") if get_parent() else null
+	for intent in active_intents:
+		if intent.caster == target_node and not intent.is_cancelled and not intent.is_resolved:
+			intent.cancel(reason)
+			var caster_name = target_node.character_name if ("character_name" in target_node and target_node.character_name != "") else target_node.name
+			if ui and ui.has_method("log_action"):
+				ui.log_action("❌ [INTERRUPTED] %s's %s was cancelled due to %s!" % [caster_name, intent.ability_name, reason])
+			if ui and ui.has_method("spawn_damage_popup"):
+				ui.spawn_damage_popup(target_node.position, "INTERRUPTED! (%s)" % reason.to_upper(), "status")
+	update_danger_overlay()
+
+func resolve_team_intents(team: String) -> void:
+	for intent in active_intents:
+		if intent.caster_team == team and not intent.is_cancelled and not intent.is_resolved:
+			if intent.tick_round():
+				if intent.can_resolve():
+					_execute_telegraphed_strike(intent)
+				intent.is_resolved = true
+
+	var remaining: Array = []
+	for it in active_intents:
+		if not it.is_cancelled and not it.is_resolved:
+			remaining.append(it)
+	active_intents = remaining
+	update_danger_overlay()
+
+func _execute_telegraphed_strike(intent) -> void:
+	var ui = get_parent().get_node_or_null("UI") if get_parent() else null
+	var caster_name = intent.caster.character_name if ("character_name" in intent.caster and intent.caster.character_name != "") else intent.caster.name
+	if ui and ui.has_method("log_action"):
+		ui.log_action("💥 [TELEGRAPH IMPACT] %s's %s strikes the targeted zone!" % [caster_name, intent.ability_name])
+
+	var dmg: int = int(intent.ability_data.get("damage", 32))
+	var elem: String = intent.ability_data.get("element", "")
+	var target_group = "enemies" if intent.caster_team == "player" else "players"
+
+	if is_inside_tree():
+		for target in get_tree().get_nodes_in_group(target_group):
+			if is_instance_valid(target) and ("hp" not in target or target.hp > 0):
+				var tt = Vector2i(int(floor(target.position.x / 64)), int(floor(target.position.y / 64)))
+				if tt in intent.target_tiles:
+					if target.has_method("take_damage"):
+						target.take_damage(dmg, Vector2(intent.origin_tile.x * 64 + 32, intent.origin_tile.y * 64 + 32), 30, 100, true, intent.caster, elem)
+					if ui and ui.has_method("spawn_damage_popup"):
+						ui.spawn_damage_popup(target.position, "ZONE IMPACT (-%d)" % dmg, "damage", elem)
+
+	if is_instance_valid(intent.caster):
+		intent.caster.has_acted = true
+	add_momentum(intent.caster_team, 15, "telegraph_impact")
+
+func update_danger_overlay() -> void:
+	if grid_overlay != null and grid_overlay.has_method("set_danger_intents"):
+		var enemy_intents: Array = []
+		for it in active_intents:
+			if it.caster_team == "enemy" and not it.is_cancelled and not it.is_resolved:
+				enemy_intents.append(it)
+		grid_overlay.set_danger_intents(enemy_intents)
+
+func _tick_primers() -> void:
+	var expired: Array = []
+	for target in primers.keys():
+		if not is_instance_valid(target) or ("hp" in target and target.hp <= 0):
+			expired.append(target)
+			continue
+		primers[target]["turns_remaining"] -= 1
+		if primers[target]["turns_remaining"] <= 0:
+			expired.append(target)
+	for t in expired:
+		primers.erase(t)
+
+# ──────────────────────────────────────────────
+#  TARGET-OWNED ELEMENTAL PRIMERS & DETONATIONS
+# ──────────────────────────────────────────────
+func register_elemental_action(caster: Node2D, element_key: String, target: Node2D = null, is_reaction: bool = false) -> Dictionary:
 	var elem = element_key.to_lower()
 	if elem.is_empty():
 		return {}
 
+	# Non-priming reaction damage guard
+	if is_reaction:
+		return {}
+
+	var team = "player" if _is_ally_unit(caster) else "enemy"
 	var reaction = check_elemental_fusion(elem, target, caster)
 	recent_elemental_actions.append({"caster": caster, "element": elem, "target": target})
 	if recent_elemental_actions.size() > 6:
 		recent_elemental_actions.pop_front()
 
-	var gauge_gain = 25 if not reaction.is_empty() else 10
-	resonance_gauge = min(max_resonance, resonance_gauge + gauge_gain)
-
-	var ui = get_parent().get_node_or_null("UI") if get_parent() else null
-	if resonance_gauge >= max_resonance:
-		resonance_gauge = 0
-		team_resonance_buff = true
-		print("[BattleManager] 🌟 RESONANCE SURGE! Next team attacks deal +20% damage!")
-		if ui and ui.has_method("log_action"):
-			ui.log_action("🌟 [RESONANCE SURGE] Gauge maxed! Team empowered with +20% damage boost!")
-		if ui and ui.has_method("show_resonance_banner"):
-			ui.show_resonance_banner()
-		elif ui and ui.has_method("spawn_damage_popup") and caster:
-			ui.spawn_damage_popup(caster.position, "RESONANCE SURGE (+20%)", "status")
+	if not reaction.is_empty():
+		# Primer consumed on detonation!
+		if target != null and primers.has(target):
+			primers.erase(target)
+		add_momentum(team, 15, "fusion_detonation")
+	else:
+		# Attach target-owned primer token
+		if target != null and is_instance_valid(target) and ("hp" not in target or target.hp > 0):
+			primers[target] = {
+				"element": elem,
+				"caster": caster,
+				"caster_team": team,
+				"turns_remaining": 1
+			}
+			var ui = get_parent().get_node_or_null("UI") if get_parent() else null
+			if ui and ui.has_method("spawn_damage_popup"):
+				ui.spawn_damage_popup(target.position, "PRIMED: %s" % elem.to_upper(), "status")
+		add_momentum(team, 8, "elemental_hit")
 
 	return reaction
 
@@ -130,35 +307,35 @@ func _is_enemy_unit(unit: Node2D) -> bool:
 func check_elemental_fusion(new_elem: String, target: Node2D, cur_caster: Node2D = null) -> Dictionary:
 	if not is_instance_valid(target) or target.is_queued_for_deletion() or ("hp" in target and target.hp <= 0):
 		return {}
-	if recent_elemental_actions.is_empty():
-		return {}
 
-	var last_action = recent_elemental_actions.back()
-	var prev_elem = last_action.get("element", "")
-	var prev_caster = last_action.get("caster", null)
-	var prev_target = last_action.get("target", null)
+	var prev_elem := ""
+	var prev_caster: Node2D = null
+
+	# 1. Target-owned primer check
+	if target != null and primers.has(target):
+		var p_info = primers[target]
+		var primer_team = p_info.get("caster_team", "")
+		var cur_team = "player" if (cur_caster != null and _is_ally_unit(cur_caster)) else "enemy"
+		if primer_team == cur_team and p_info.get("caster", null) != cur_caster:
+			prev_elem = p_info.get("element", "")
+			prev_caster = p_info.get("caster", null)
+
+	# 2. Fallback check from recent actions
+	if prev_elem.is_empty() and not recent_elemental_actions.is_empty():
+		var last_action = recent_elemental_actions.back()
+		if last_action.get("target", null) == target:
+			var prev_c = last_action.get("caster", null)
+			if cur_caster != null and prev_c != null and cur_caster != prev_c:
+				var cur_is_ally = _is_ally_unit(cur_caster)
+				var prev_is_ally = _is_ally_unit(prev_c)
+				var target_is_enemy = _is_enemy_unit(target)
+				var target_is_ally = _is_ally_unit(target)
+				if (cur_is_ally and prev_is_ally and target_is_enemy) or (!cur_is_ally and !prev_is_ally and target_is_ally):
+					prev_elem = last_action.get("element", "")
+					prev_caster = prev_c
 
 	if prev_elem.is_empty() or prev_elem == new_elem:
 		return {}
-
-	# Rule: Elemental fusion should ONLY happen if:
-	# 1. Two ally characters attack one enemy character
-	# 2. OR two enemy characters attack one ally character
-	# It must NOT trigger when an ally and enemy attack each other or attack different targets.
-	if target == null or prev_target == null or target != prev_target:
-		return {}
-
-	if cur_caster != null and prev_caster != null:
-		var cur_is_ally = _is_ally_unit(cur_caster)
-		var prev_is_ally = _is_ally_unit(prev_caster)
-		var target_is_enemy = _is_enemy_unit(target)
-		var target_is_ally = _is_ally_unit(target)
-
-		var ally_combo = (cur_is_ally and prev_is_ally and target_is_enemy)
-		var enemy_combo = (!cur_is_ally and !prev_is_ally and target_is_ally)
-
-		if not (ally_combo or enemy_combo):
-			return {}
 
 	var edata = get_node_or_null("/root/ElementData")
 	var fusion_info = edata.get_fusion_info(prev_elem, new_elem) if edata else {}
@@ -182,8 +359,9 @@ func check_elemental_fusion(new_elem: String, target: Node2D, cur_caster: Node2D
 	return fusion_info
 
 func consume_resonance_buff() -> bool:
-	if team_resonance_buff:
+	if team_resonance_buff or player_empowered:
 		team_resonance_buff = false
+		player_empowered = false
 		return true
 	return false
 
@@ -431,6 +609,24 @@ func start_player_turn():
 	current_state = State.PLAYER_MOVE
 	print("[BattleManager] --- Turn %d: Player Move Phase ---" % turn_count)
 
+	# 1. Reset reactions for new full round
+	if reaction_resolver:
+		reaction_resolver.reset_round()
+
+	# 2. Decay/tick primers
+	_tick_primers()
+
+	# 3. Resolve telegraphed player attacks
+	resolve_team_intents("player")
+	update_danger_overlay()
+
+	# 4. Crowd roar boost
+	if player_crowd_roar_active:
+		for u in player_units:
+			if is_instance_valid(u) and ("moves_remaining" in u):
+				u.moves_remaining += 1
+		player_crowd_roar_active = false
+
 	if player_units.is_empty() and player != null:
 		player_units.append(player)
 
@@ -517,6 +713,20 @@ func start_enemy_turn():
 		return
 	if check_battle_end_conditions():
 		return
+
+	# 1. Resolve telegraphed enemy attacks
+	resolve_team_intents("enemy")
+	update_danger_overlay()
+
+	if check_battle_end_conditions():
+		return
+
+	# 2. Crowd roar boost for enemies
+	if enemy_crowd_roar_active:
+		for e in enemy_units:
+			if is_instance_valid(e) and ("moves_remaining" in e):
+				e.moves_remaining += 1
+		enemy_crowd_roar_active = false
 
 	current_state = State.ENEMY_TURN
 	print("[BattleManager] --- Enemy Turn ---")

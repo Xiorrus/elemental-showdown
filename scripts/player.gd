@@ -1,5 +1,8 @@
 extends CharacterBody2D
 const AbilityGeometryScript = preload("res://scripts/ability_geometry.gd")
+const ForceMovementResolverScript = preload("res://scripts/force_movement_resolver.gd")
+const AttackIntentScript = preload("res://scripts/attack_intent.gd")
+const ReactionResolverScript = preload("res://scripts/reaction_resolver.gd")
 
 # ──────────────────────────────────────────────
 #  ELEMENTAL SHOWDOWN — Player
@@ -424,49 +427,10 @@ func apply_distance_falloff(base_damage: float, distance: int, optimal_range: in
 	return base_damage
 
 func apply_knockback(source_pos: Vector2, distance_tiles: int = 1) -> bool:
-	var diff = position - source_pos
-	var dir_x = 0
-	var dir_y = 0
-	if abs(diff.x) >= abs(diff.y):
-		dir_x = 1 if diff.x >= 0 else -1
-	else:
-		dir_y = 1 if diff.y >= 0 else -1
-
-	var cur_col = int(floor(position.x / TILE_SIZE))
-	var cur_row = int(floor(position.y / TILE_SIZE))
-	var target_col = cur_col + (dir_x * distance_tiles)
-	var target_row = cur_row + (dir_y * distance_tiles)
-
-	var hit_wall = (target_col < 0 or target_col >= 18 or target_row < 0 or target_row >= 10)
-	var hit_obstacle = false
-	if not hit_wall and is_inside_tree():
-		for group in ["players", "enemies"]:
-			for node in get_tree().get_nodes_in_group(group):
-				if is_instance_valid(node) and node != self and ("hp" not in node or node.hp > 0):
-					var nc = int(floor(node.position.x / TILE_SIZE))
-					var nr = int(floor(node.position.y / TILE_SIZE))
-					if nc == target_col and nr == target_row:
-						hit_obstacle = true
-						break
-
-	if hit_wall or hit_obstacle:
-		print("[Player] Knocked into wall/obstacle at (%d, %d)! Collision shock!" % [target_col, target_row])
-		if ui and ui.has_method("spawn_damage_popup"):
-			ui.spawn_damage_popup(position, "COLLISION SHOCK! (+12)", "damage")
-		if ui and ui.has_method("log_action"):
-			ui.log_action("💥 [Player] Collided with obstacle! Took 12 collision damage!")
-		take_damage(12, Vector2.ZERO, 30, 100, true)
-		if sprite:
-			var tw = create_tween()
-			tw.tween_property(sprite, "position", Vector2(dir_x * 8, dir_y * 8), 0.05)
-			tw.tween_property(sprite, "position", Vector2.ZERO, 0.05)
-		return false
-	else:
-		var new_pos = Vector2(target_col * TILE_SIZE + TILE_SIZE / 2, target_row * TILE_SIZE + TILE_SIZE / 2)
-		var tw = create_tween()
-		tw.tween_property(self, "position", new_pos, 0.15).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-		print("[Player] Knocked back to (%d, %d)" % [target_col, target_row])
-		return true
+	var bm = battle_manager if battle_manager else (get_parent().get_node_or_null("BattleManager") if get_parent() else null)
+	var terrain_node = bm.terrain if (bm != null and "terrain" in bm) else null
+	var result = ForceMovementResolverScript.resolve_push(self, source_pos, distance_tiles, get_tree(), terrain_node)
+	return ForceMovementResolverScript.apply_resolved_push(result, ui, bm)
 
 func take_damage(amount: int, attacker_pos: Vector2 = Vector2.ZERO, attacker_dex: int = 20, skill_acc: int = 90, is_unavoidable: bool = false, attacker_node: Node2D = null, skill_elem: String = ""):
 	if hp <= 0 or amount <= 0:
@@ -523,6 +487,15 @@ func take_damage(amount: int, attacker_pos: Vector2 = Vector2.ZERO, attacker_dex
 	final_amount = int(round(final_amount * def_factor))
 	final_amount = max(1, final_amount)
 
+	# ReactionResolver: Guard check
+	var bm = battle_manager if battle_manager else (get_parent().get_node_or_null("BattleManager") if get_parent() else null)
+	if bm and "reaction_resolver" in bm and bm.reaction_resolver != null:
+		var g_res = bm.reaction_resolver.evaluate_guard(self, final_amount)
+		if g_res.get("guarded", false):
+			final_amount = g_res["damage"]
+			if ui and ui.has_method("spawn_damage_popup"):
+				ui.spawn_damage_popup(position, "GUARD (-30%)", "status")
+
 	hp -= final_amount
 	hp = max(hp, 0)
 	print("[Player] Took %d damage → HP: %d/%d" % [final_amount, hp, max_hp])
@@ -535,6 +508,11 @@ func take_damage(amount: int, attacker_pos: Vector2 = Vector2.ZERO, attacker_dex
 		ui.spawn_damage_popup(position, final_amount, "damage", skill_elem)
 	if ui:
 		ui.update_player_stats(hp, max_hp, mp, max_mp, stamina, max_stamina)
+
+	# ReactionResolver: Counter check (surviving melee hit triggers counter-attack)
+	if hp > 0 and bm and "reaction_resolver" in bm and bm.reaction_resolver != null and attacker_node != null and attacker_node != self:
+		bm.reaction_resolver.trigger_counter(self, attacker_node, ui)
+
 	if hp <= 0:
 		if ui and ui.has_method("trigger_screen_shake"):
 			ui.trigger_screen_shake(12.0, 0.35)
@@ -544,6 +522,21 @@ func take_damage(amount: int, attacker_pos: Vector2 = Vector2.ZERO, attacker_dex
 			battle_manager.record_knockout(self)
 		_on_defeated()
 	return final_amount
+
+func declare_reaction(reaction_type: String, target_ally: Node2D = null) -> bool:
+	var bm = battle_manager if battle_manager else (get_parent().get_node_or_null("BattleManager") if get_parent() else null)
+	if bm and "reaction_resolver" in bm and bm.reaction_resolver != null:
+		var ok = bm.reaction_resolver.declare_reaction(self, reaction_type, target_ally)
+		if ok:
+			has_acted = true
+			var my_name = character_name if character_name != "" else name
+			if ui and ui.has_method("log_action"):
+				ui.log_action("🛡️ [ORDER] %s assumes %s stance!" % [my_name, reaction_type.to_upper()])
+			if ui and ui.has_method("spawn_damage_popup"):
+				ui.spawn_damage_popup(position, reaction_type.to_upper(), "status")
+			end_turn()
+		return ok
+	return false
 
 func heal(amount: int):
 	hp = min(hp + amount, max_hp)
@@ -828,6 +821,10 @@ func on_move_tile_clicked(target_tile: Vector2i, distance: int):
 		var step_pos := Vector2(step_tile.x * TILE_SIZE + TILE_SIZE * 0.5, step_tile.y * TILE_SIZE + TILE_SIZE * 0.5)
 		_update_facing_direction(step_pos - position)
 		await _play_walk_cycle(facing_frame, step_pos)
+		if battle_manager and "reaction_resolver" in battle_manager and battle_manager.reaction_resolver != null:
+			battle_manager.reaction_resolver.trigger_overwatch(self, step_tile, get_tree(), ui)
+			if hp <= 0:
+				break
 	is_animating = false
 
 	print("[Player] Moved %d tiles via mouse → %d moves remaining" % [distance, moves_remaining])
@@ -1058,6 +1055,24 @@ func _execute_ability(ability: Dictionary, target: Node2D = null, mp_cost: int =
 	if target_node != null and target_node != self and battle_manager and battle_manager.terrain and battle_manager.terrain.blocks_line(origin_tile, target_tile):
 		if ui: ui.log_action("A stone wall blocks this attack. Break the wall first.")
 		return false
+	# ── Telegraphed Windup Check ─────────────────────────────────────────────
+	var windup: int = int(var_info.get("windup_rounds", ability.get("windup_rounds", 0)))
+	if windup > 0:
+		if not spend_mp(mp_cost):
+			if ui: ui.log_action("Not enough MP for %s!" % ability["name"])
+			return false
+		var intent = AttackIntentScript.new(self, "player", ability.get("name", "Skill"), var_info.get("name", ability.get("name")), ability, origin_tile, target_tile, affected_tiles, windup)
+		if battle_manager and battle_manager.has_method("queue_intent"):
+			battle_manager.queue_intent(intent)
+		var c_name = character_name if character_name != "" else name
+		if ui and ui.has_method("log_action"):
+			ui.log_action("⏳ [WINDUP] %s charges %s! Target zone locked!" % [c_name, var_info.get("name", ability["name"])])
+		if ui and ui.has_method("spawn_damage_popup"):
+			ui.spawn_damage_popup(position, "WINDUP...", "status")
+		has_acted = true
+		end_turn()
+		return true
+
 	# Pay only after validation. Artifacts pass zero cost and cannot create MP refunds.
 	if not spend_mp(mp_cost):
 		if ui:
@@ -1069,14 +1084,17 @@ func _execute_ability(ability: Dictionary, target: Node2D = null, mp_cost: int =
 
 	var damage = base_damage
 
-	# Resonance Gauge Buff (+20% damage if gauge was full)
+	# Resonance / Empowered Boost (+20% damage if momentum was full)
 	var resonance_active = false
 	if damage > 0 and not is_support and battle_manager and battle_manager.has_method("consume_resonance_buff"):
 		resonance_active = battle_manager.consume_resonance_buff()
-	if resonance_active and damage > 0:
+	var empower_boost := 0.0
+	if damage > 0 and not is_support and battle_manager and battle_manager.has_method("consume_empowered_boost"):
+		empower_boost = battle_manager.consume_empowered_boost("player")
+	if (resonance_active or empower_boost > 0.0) and damage > 0:
 		damage = int(round(damage * 1.20))
 		if ui and ui.has_method("log_action"):
-			ui.log_action("⚡ RESONANCE BURST! +20% Damage!")
+			ui.log_action("⚡ [EMPOWERED MOMENT] +20% Damage!")
 
 	var ab_elem = ability.get("element", element)
 	var hit_landed = true
@@ -1086,6 +1104,17 @@ func _execute_ability(ability: Dictionary, target: Node2D = null, mp_cost: int =
 			for other in get_all_enemies():
 				if other != target_node and affected_tiles.has(AbilityGeometryScript.tile_of(other.position)):
 					targets.append(other)
+
+		# Check Intercept reaction for targets
+		for ti in range(targets.size()):
+			var tv = targets[ti]
+			if battle_manager and "reaction_resolver" in battle_manager and battle_manager.reaction_resolver != null:
+				var interceptor = battle_manager.reaction_resolver.evaluate_intercept(tv, get_tree())
+				if interceptor != null:
+					var int_name = interceptor.character_name if ("character_name" in interceptor and interceptor.character_name != "") else interceptor.name
+					if ui and ui.has_method("log_action"):
+						ui.log_action("🛡️ [INTERCEPT] %s steps in to protect their ally!" % int_name)
+					targets[ti] = interceptor
 		var total_damage := 0
 		var any_hit := false
 		for victim in targets:

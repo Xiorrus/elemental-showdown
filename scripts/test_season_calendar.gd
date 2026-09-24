@@ -72,7 +72,7 @@ func _run() -> void:
 	check(balanced and pair_hosts.size() == 28,
 		"Every opponent appears once home and once away; every club has seven home games")
 
-	var national_weeks := [7, 15, 23, 31]
+	var national_weeks := [7, 15, 23, 25]
 	var valid_windows := true
 	for week in national_weeks:
 		var entry: Dictionary = model.get_week(season, week)
@@ -135,7 +135,10 @@ func _run() -> void:
 	var postseason: Dictionary = model.get_postseason(ranked)
 	check(postseason["ready"] and postseason["championship_qualifiers"] == ["A", "B", "C", "D"],
 		"Top four qualify for the championship")
-	check(postseason["semifinals"] == [{"home": "A", "away": "D"}, {"home": "B", "away": "C"}],
+	check(postseason["semifinals"][0]["home"] == "A" and postseason["semifinals"][0]["away"] == "D"
+		and postseason["semifinals"][1]["home"] == "B" and postseason["semifinals"][1]["away"] == "C"
+		and postseason["semifinals"][0].get("best_of", 1) == 3
+		and postseason["semifinals"][0].get("scheduled_days", []) == [199, 202, 205],
 		"Championship seeds play first versus fourth and second versus third")
 	check(postseason["promotion_candidates"] == ["A", "B"]
 		and postseason["relegation_candidates"] == ["H", "G"],

@@ -725,11 +725,16 @@ func _refresh_all():
 			var season_week = clampi(int(next_m.get("week", season_summary.get("week", 1))), 1, 32)
 			var days_until = cm.get_days_until_next_match()
 			var phase = str(season_summary.get("phase", "club_regular"))
-			var match_label = "Club League"
+			var match_label = "Club League (3v3)"
 			if phase == "club_semifinal":
-				match_label = "Championship Semifinal"
+				var s_num: int = int(next_m.get("game_number", 1))
+				var s_score: Array = next_m.get("series_score", [0, 0])
+				match_label = "Semifinal (3v3 Bo3 • G%d • %d-%d)" % [s_num, s_score[0], s_score[1]]
 			elif phase == "club_final":
-				match_label = "National Cup Final" if cm.league_tier == 3 else "Championship Final"
+				var s_num: int = int(next_m.get("game_number", 1))
+				var s_score: Array = next_m.get("series_score", [0, 0])
+				var cup_title = "National Cup Final" if cm.league_tier == 3 else "Championship Final"
+				match_label = "%s (3v3 Bo5 • G%d • %d-%d)" % [cup_title, s_num, s_score[0], s_score[1]]
 			lbl_next_match_tag.text = "Week %d/32 • %s" % [season_week, match_label]
 			lbl_next_xp_reward.text = "+60 XP"
 			lbl_next_gold_reward.text = "+200 G"
@@ -2737,6 +2742,15 @@ func _refresh_battle_tab():
 	target_tag.modulate = Color(0.4, 0.85, 1.0)
 	target_hb.add_child(target_tag)
 
+	var format_tag = Label.new()
+	var fmt_str = "3v3 Squad" if cm.has_team else "1v1 Duel"
+	if cm.has_team and cm.season_phase in ["club_semifinal", "club_final"]:
+		fmt_str += " • Bo3" if cm.season_phase == "club_semifinal" else " • Bo5"
+	format_tag.text = "Format: %s" % fmt_str
+	format_tag.add_theme_font_size_override("font_size", 10)
+	format_tag.modulate = Color(0.9, 0.75, 0.3)
+	target_hb.add_child(format_tag)
+
 	# Main 2-Column Section: Left = 18x10 Arena Platform, Right = Squad Manager & Skill Editor
 	var main_hb = HBoxContainer.new()
 	main_hb.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -2973,13 +2987,30 @@ func _refresh_battle_tab():
 		if pos is Vector2i and pos != Vector2i(-1, -1):
 			deployed_count += 1
 
-	var target_count = 1 if cm.active_match_format == "1v1" else (3 if cm.active_match_format == "3v3" else 5)
+	var target_count := 3
+	if next_m.has("team_size"):
+		target_count = int(next_m["team_size"])
+	elif next_m.get("match_format") == "5v5" or (cm.has_team and cm.season_phase == "club_final" and cm.league_tier >= 3):
+		target_count = 5
+	elif cm.active_match_type == "street" or not cm.has_team:
+		target_count = 1
+	elif cm.active_match_format == "5v5":
+		target_count = 5
+	elif cm.active_match_format == "1v1":
+		target_count = 1
+	else:
+		target_count = 3
+
+	var locked_format := ""
+	if cm.has_team and cm.active_match_type in ["league", "championship"]:
+		locked_format = "%dv%d" % [target_count, target_count]
+		cm.active_match_format = locked_format
 
 	var fmt_hdr_hb = HBoxContainer.new()
 	fmt_vb.add_child(fmt_hdr_hb)
 
 	var fmt_hdr = Label.new()
-	fmt_hdr.text = "1. Match Format & Rules"
+	fmt_hdr.text = "1. Match Format & Rules (%s)" % (locked_format if locked_format != "" else cm.active_match_format)
 	fmt_hdr.add_theme_font_size_override("font_size", 10)
 	fmt_hdr.modulate = UITheme.GOLD_PRIMARY
 	fmt_hdr_hb.add_child(fmt_hdr)
@@ -3005,10 +3036,10 @@ func _refresh_battle_tab():
 	]
 	for fo in f_options:
 		var f_btn = Button.new()
-		var is_locked = (fo["req_team"] and not cm.has_team)
+		var is_locked = (fo["req_team"] and not cm.has_team) or (locked_format != "" and fo["id"] != locked_format)
 		if is_locked:
 			f_btn.text = fo["name"] + " (Locked)"
-			f_btn.tooltip_text = "Join a team in the Street Circuit to unlock team battles."
+			f_btn.tooltip_text = "Official fixture requires %s format." % locked_format if locked_format != "" else "Join a team in the Street Circuit to unlock team battles."
 			f_btn.disabled = true
 			_style_secondary_slate_button(f_btn, 8)
 			f_btn.add_theme_color_override("font_color", Color(0.4, 0.45, 0.55))
@@ -3027,6 +3058,43 @@ func _refresh_battle_tab():
 		f_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		f_btn.custom_minimum_size = Vector2(0, 24)
 		fmt_hb.add_child(f_btn)
+
+	if cm.has_team and target_count == 5 and cm.allies.size() < 5:
+		var loan_panel = PanelContainer.new()
+		var loan_sb = StyleBoxFlat.new()
+		loan_sb.bg_color = Color(0.14, 0.08, 0.04, 0.95)
+		loan_sb.border_color = Color(0.9, 0.6, 0.2, 0.8)
+		loan_sb.set_border_width_all(1)
+		loan_sb.set_corner_radius_all(4)
+		loan_sb.content_margin_left = 6
+		loan_sb.content_margin_right = 6
+		loan_sb.content_margin_top = 4
+		loan_sb.content_margin_bottom = 4
+		loan_panel.add_theme_stylebox_override("panel", loan_sb)
+		fmt_vb.add_child(loan_panel)
+
+		var loan_hb = HBoxContainer.new()
+		loan_hb.add_theme_constant_override("separation", 6)
+		loan_panel.add_child(loan_hb)
+
+		var loan_lbl = Label.new()
+		loan_lbl.text = "Roster Alert: 5 Fighters required (%d/5)." % cm.allies.size()
+		loan_lbl.add_theme_font_size_override("font_size", 9)
+		loan_lbl.modulate = Color(1.0, 0.75, 0.3)
+		loan_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		loan_hb.add_child(loan_lbl)
+
+		var btn_loan = Button.new()
+		btn_loan.text = "Emergency Signing"
+		btn_loan.custom_minimum_size = Vector2(0, 22)
+		_style_primary_gold_button(btn_loan, 8)
+		btn_loan.pressed.connect(func():
+			var signed = cm.sign_emergency_fighter()
+			if not signed.is_empty():
+				_set_activity_result("Signed emergency fighter: %s (%s, Lv.%d)" % [signed["name"], signed["element"].capitalize(), signed["level"]])
+				_refresh_battle_tab()
+		)
+		loan_hb.add_child(btn_loan)
 
 	# 2. Squad Members Lineup (Cards with live avatar, Drag-in / Drag-out & Bench Drop Zone)
 	var squad_lbl = Label.new()
@@ -3386,10 +3454,23 @@ func _refresh_battle_tab():
 
 	# 4. BIG DIRECT DEPLOY BUTTON
 	var btn_direct_deploy = Button.new()
-	btn_direct_deploy.text = "Confirm Strategy & Start Match"
 	btn_direct_deploy.custom_minimum_size = Vector2(0, 38)
-	btn_direct_deploy.disabled = not has_scheduled_match or (cm.get_next_scheduled_match().has("season_day") and not cm.can_play_next_match() and _pending_deployment_match.is_empty())
 	_style_primary_gold_button(btn_direct_deploy, 12)
+
+	var timing_locked = (cm.get_next_scheduled_match().has("season_day") and not cm.can_play_next_match() and _pending_deployment_match.is_empty())
+	if not has_scheduled_match:
+		btn_direct_deploy.text = "No Match Scheduled"
+		btn_direct_deploy.disabled = true
+	elif timing_locked:
+		btn_direct_deploy.text = "Match Date Not Reached"
+		btn_direct_deploy.disabled = true
+	elif cm.has_team and deployed_count != target_count:
+		btn_direct_deploy.text = "Deploy Exactly %d Fighters (%d/%d)" % [target_count, deployed_count, target_count]
+		btn_direct_deploy.disabled = true
+	else:
+		btn_direct_deploy.text = "Confirm Strategy & Start Match (%dv%d)" % [target_count, target_count]
+		btn_direct_deploy.disabled = false
+
 	btn_direct_deploy.pressed.connect(func():
 		var cap_pos = cm.starting_formation.get(cm.player_name, Vector2i(-1, -1))
 		if not cap_pos is Vector2i or cap_pos == Vector2i(-1, -1):
@@ -3491,6 +3572,55 @@ func _refresh_team_tab():
 	list_header.add_theme_font_size_override("font_size", 13)
 	list_header.modulate = Color(0.92, 0.78, 0.35, 1.0)
 	left_col.add_child(list_header)
+
+	if cm and cm.has_team:
+		var readiness = cm.check_roster_readiness(5)
+		if readiness["warning_active"] or cm.allies.size() < 5:
+			var alert_panel = PanelContainer.new()
+			var alert_sb = StyleBoxFlat.new()
+			alert_sb.bg_color = Color(0.14, 0.09, 0.05, 0.95) if not readiness["ready"] else Color(0.06, 0.12, 0.08, 0.95)
+			alert_sb.set_border_width_all(1)
+			alert_sb.border_color = Color(0.9, 0.6, 0.2, 0.8) if not readiness["ready"] else Color(0.3, 0.8, 0.4, 0.8)
+			alert_sb.set_corner_radius_all(4)
+			alert_sb.content_margin_left = 10
+			alert_sb.content_margin_right = 10
+			alert_sb.content_margin_top = 6
+			alert_sb.content_margin_bottom = 6
+			alert_panel.add_theme_stylebox_override("panel", alert_sb)
+			left_col.add_child(alert_panel)
+
+			var alert_vb = VBoxContainer.new()
+			alert_vb.add_theme_constant_override("separation", 3)
+			alert_panel.add_child(alert_vb)
+
+			var alert_lbl = Label.new()
+			alert_lbl.text = "Roster Readiness: %d/5 Fighters" % readiness["current_count"]
+			alert_lbl.add_theme_font_size_override("font_size", 10)
+			alert_lbl.modulate = Color(1.0, 0.75, 0.3) if not readiness["ready"] else Color(0.5, 0.9, 0.6)
+			alert_vb.add_child(alert_lbl)
+
+			if not readiness["ready"]:
+				var sub_alert = Label.new()
+				sub_alert.text = "National Cup Final requires 5 eligible fighters."
+				sub_alert.add_theme_font_size_override("font_size", 8)
+				sub_alert.modulate = UITheme.TEXT_MUTED
+				alert_vb.add_child(sub_alert)
+
+				if cm.can_sign_emergency_fighter():
+					var btn_loan = Button.new()
+					btn_loan.text = "Emergency Club Signing"
+					btn_loan.custom_minimum_size = Vector2(0, 24)
+					_style_primary_gold_button(btn_loan, 8)
+					btn_loan.pressed.connect(func():
+						var signed = cm.sign_emergency_fighter()
+						if not signed.is_empty():
+							_set_activity_result("Signed emergency fighter: %s (%s, Lv.%d)" % [
+								signed["name"], signed["element"].capitalize(), signed["level"]
+							])
+							_refresh_team_tab()
+							_refresh_battle_tab()
+					)
+					alert_vb.add_child(btn_loan)
 
 	var active_roster = _get_active_roster()
 
@@ -4285,6 +4415,34 @@ func _on_launch_battle_arena_direct():
 	if _pending_deployment_match.is_empty() and cm.get_next_scheduled_match().has("season_day") and not cm.can_play_next_match():
 		_open_calendar()
 		return
+	if cm.has_team:
+		var match_data = _get_deployment_match()
+		var target_count := 3
+		if match_data.has("team_size"):
+			target_count = int(match_data["team_size"])
+		elif match_data.get("match_format") == "5v5" or (cm.season_phase == "club_final" and cm.league_tier >= 3):
+			target_count = 5
+		elif cm.active_match_type == "street":
+			target_count = 1
+		elif cm.active_match_format == "5v5":
+			target_count = 5
+		elif cm.active_match_format == "1v1":
+			target_count = 1
+
+		var deployed_count := 0
+		var deployed_positions := {}
+		var b_roster = _get_active_roster()
+		for a in b_roster:
+			var pos = cm.starting_formation.get(a["name"], Vector2i(-1, -1))
+			if pos is Vector2i and pos != Vector2i(-1, -1):
+				if deployed_positions.has(pos):
+					_set_activity_result("Deployment lock: overlapping positions at (%d, %d)." % [pos.x, pos.y])
+					return
+				deployed_positions[pos] = a["name"]
+				deployed_count += 1
+		if deployed_count != target_count:
+			_set_activity_result("Deployment lock: exactly %d fighters required (%d deployed)." % [target_count, deployed_count])
+			return
 	_prepare_deployment_match()
 	get_tree().change_scene_to_file("res://scenes/World.tscn")
 

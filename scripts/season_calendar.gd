@@ -3,13 +3,16 @@
 extends RefCounted
 class_name SeasonCalendar
 
+const CompetitionRuleBookScript = preload("res://scripts/competition_rule_book.gd")
+const SeriesStateScript = preload("res://scripts/series_state.gd")
+
 const WEEKS_PER_SEASON := 32
 const DAYS_PER_WEEK := 7
 const DAYS_PER_SEASON := WEEKS_PER_SEASON * DAYS_PER_WEEK
 const WEEKS_PER_MONTH := 4
 const CLUB_COUNT := 8
 const REGULAR_WEEKS := [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28]
-const NATIONAL_WEEKS := [7, 15, 23, 31]
+const NATIONAL_WEEKS := [7, 15, 23, 25]
 const CLUB_FRIENDLY_WEEKS := [1, 17]
 const TRANSFER_WINDOW_WEEKS := [1, 17]
 const MONTH_NAMES := ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
@@ -19,7 +22,7 @@ const DEFAULT_TEAMS := [
 ]
 
 
-func create_season(team_names: Array = DEFAULT_TEAMS, season_number: int = 1) -> Dictionary:
+func create_season(team_names: Array = DEFAULT_TEAMS, season_number: int = 1, tier: int = 1) -> Dictionary:
 	# Exactly eight distinct clubs keeps each week at four matches and gives every
 	# club seven opponents to face once at home and once away.
 	if team_names.size() != CLUB_COUNT or season_number < 1:
@@ -100,6 +103,7 @@ func create_season(team_names: Array = DEFAULT_TEAMS, season_number: int = 1) ->
 
 	return {
 		"season_number": season_number,
+		"league_tier": tier,
 		"weeks_total": WEEKS_PER_SEASON,
 		"teams": teams,
 		"fixtures": fixtures,
@@ -148,8 +152,15 @@ func get_day_entry(season: Dictionary, club_name: String, season_day: int, seaso
 					"fixture_id": fixture["id"], "played": fixture.get("played", false),
 					"home": fixture["home"] == club_name})
 		for event in get_week(season, week).get("events", []):
-			if event.get("type", "") in ["national_window", "club_friendly", "championship_semifinals", "championship_final"]:
+			if event.get("type", "") in ["national_window", "club_friendly"]:
 				events.append(event.duplicate(true))
+
+	var tier: int = int(season.get("league_tier", 1))
+	var final_days := [210, 213, 216] if tier < 3 else [210, 213, 216, 220, 223]
+	if season_day in [199, 202, 205]:
+		_append_semifinal_event(events, season, club_name, season_day)
+	elif season_day in final_days:
+		_append_final_event(events, season, club_name, season_day)
 	return {
 		"season_day": season_day,
 		"week": week,
@@ -239,7 +250,8 @@ func get_postseason(season: Dictionary) -> Dictionary:
 		"championship_qualifiers": [],
 		"semifinals": [],
 		"promotion_candidates": [],
-		"relegation_candidates": []
+		"relegation_candidates": [],
+		"series": {}
 	}
 	var fixtures: Array = season.get("fixtures", [])
 	if fixtures.size() != CLUB_COUNT * (CLUB_COUNT - 1):
@@ -255,9 +267,132 @@ func get_postseason(season: Dictionary) -> Dictionary:
 	for rank in range(2):
 		summary["promotion_candidates"].append(standings[rank]["team"])
 		summary["relegation_candidates"].append(standings[CLUB_COUNT - 1 - rank]["team"])
+
+	var season_num: int = int(season.get("season_number", 1))
+	var tier: int = int(season.get("league_tier", 1))
+	var semi_preset := "city_semis"
+	if tier == 2:
+		semi_preset = "regional_semis"
+	elif tier >= 3:
+		semi_preset = "national_semis"
+	var semi1_id: String = "s%d_semi_1" % season_num
+	var semi2_id: String = "s%d_semi_2" % season_num
+	var semi_rules := CompetitionRuleBookScript.get_preset(semi_preset)
+	var semi_days := [199, 202, 205]
+
+	var semi1_state := SeriesStateScript.new(semi1_id, semi_preset, standings[0]["team"], standings[3]["team"], 3, semi_days)
+	semi1_state.rules = semi_rules
+	var semi2_state := SeriesStateScript.new(semi2_id, semi_preset, standings[1]["team"], standings[2]["team"], 3, semi_days)
+	semi2_state.rules = semi_rules
+
 	summary["semifinals"] = [
-		{"home": standings[0]["team"], "away": standings[3]["team"]},
-		{"home": standings[1]["team"], "away": standings[2]["team"]}
+		{
+			"home": standings[0]["team"],
+			"away": standings[3]["team"],
+			"series_id": semi1_id,
+			"competition_id": semi_preset,
+			"best_of": 3,
+			"scheduled_days": semi_days,
+			"rules": semi_rules.to_dict(),
+			"series_state": semi1_state.to_dict()
+		},
+		{
+			"home": standings[1]["team"],
+			"away": standings[2]["team"],
+			"series_id": semi2_id,
+			"competition_id": semi_preset,
+			"best_of": 3,
+			"scheduled_days": semi_days,
+			"rules": semi_rules.to_dict(),
+			"series_state": semi2_state.to_dict()
+		}
 	]
+	summary["series"] = {
+		semi1_id: semi1_state.to_dict(),
+		semi2_id: semi2_state.to_dict()
+	}
 	summary["ready"] = true
 	return summary
+
+
+func _append_semifinal_event(events: Array, season: Dictionary, club_name: String, season_day: int) -> void:
+	var semi_days := [199, 202, 205]
+	var g_idx := semi_days.find(season_day)
+	var series_info := _find_series_entry(season, club_name, season_day, "semi")
+	if not series_info.is_empty():
+		events.append(series_info)
+	else:
+		events.append({
+			"type": "championship_semifinals",
+			"game_index": g_idx,
+			"game_number": g_idx + 1,
+			"game_label": "G%d" % (g_idx + 1),
+			"if_needed": (g_idx == 2),
+			"status": "if_needed" if g_idx == 2 else "scheduled",
+			"qualifiers": 4
+		})
+
+
+func _append_final_event(events: Array, season: Dictionary, club_name: String, season_day: int) -> void:
+	var tier: int = int(season.get("league_tier", 1))
+	var series_info := _find_series_entry(season, club_name, season_day, "final")
+	if not series_info.is_empty():
+		events.append(series_info)
+	else:
+		var final_days := [210, 213, 216] if tier < 3 else [210, 213, 216, 220, 223]
+		if not season_day in final_days:
+			return
+		var g_idx := final_days.find(season_day)
+		var best_of: int = 3 if tier < 3 else 5
+		var wins_needed: int = int(best_of / 2) + 1
+		events.append({
+			"type": "championship_final",
+			"game_index": g_idx,
+			"game_number": g_idx + 1,
+			"game_label": "G%d" % (g_idx + 1),
+			"if_needed": (g_idx >= wins_needed),
+			"status": "if_needed" if g_idx >= wins_needed else "scheduled"
+		})
+
+
+func _find_series_entry(season: Dictionary, club_name: String, season_day: int, kind: String) -> Dictionary:
+	var series_pool := {}
+	if season.get("series") is Dictionary:
+		for k in season["series"]:
+			series_pool[k] = season["series"][k]
+	if season.get("championship_state") is Dictionary and season["championship_state"].get("series") is Dictionary:
+		for k in season["championship_state"]["series"]:
+			series_pool[k] = season["championship_state"]["series"][k]
+	if season.get("postseason") is Dictionary and season["postseason"].get("series") is Dictionary:
+		for k in season["postseason"]["series"]:
+			series_pool[k] = season["postseason"]["series"][k]
+
+	for s_id in series_pool:
+		var s_data = series_pool[s_id]
+		var s: SeriesState = s_data if s_data is SeriesState else SeriesStateScript.from_dict(s_data)
+		if s == null:
+			continue
+		if not (club_name in [s.home_team, s.away_team]):
+			continue
+		if season_day in s.scheduled_days:
+			var g_idx: int = s.scheduled_days.find(season_day)
+			var status: String = s.get_game_status(g_idx)
+			var is_home: bool = (s.home_team == club_name)
+			var opponent: String = s.away_team if is_home else s.home_team
+			var event_type: String = "championship_semifinals" if kind == "semi" else "championship_final"
+			return {
+				"type": event_type,
+				"series_id": s.series_id,
+				"competition_id": s.competition_id,
+				"opponent": opponent,
+				"home": is_home,
+				"game_index": g_idx,
+				"game_number": g_idx + 1,
+				"game_label": "G%d" % (g_idx + 1),
+				"status": status,
+				"if_needed": (g_idx >= s.wins_needed()),
+				"best_of": s.best_of,
+				"played": (status == "played"),
+				"series_state": s.to_dict()
+			}
+	return {}

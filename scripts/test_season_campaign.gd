@@ -124,12 +124,13 @@ func _run():
 		"Standings qualify the winning club for the championship and promotion")
 	check(cm.season_phase == "club_semifinal" and cm.get_next_scheduled_match().get("match_type", "") == "championship",
 		"The club receives a semifinal match after regular season qualification")
-	if cm.season_phase == "club_semifinal":
+	while cm.season_phase == "club_semifinal":
 		_play_next(cm, true)
-	check(cm.season_phase == "club_final" and cm.season_week == 31
-		and cm.get_next_scheduled_match().get("week", -1) == 32,
-		"A semifinal win reaches the week-31 window before the week-32 final")
-	if cm.season_phase == "club_final":
+	check(cm.season_phase == "club_final"
+		and cm.get_next_scheduled_match().get("match_type", "") == "championship"
+		and cm.get_next_scheduled_match().get("season_day", -1) == 210,
+		"A semifinal series win advances to the championship final on Day 210")
+	while cm.season_phase == "club_final":
 		_play_next(cm, true)
 	check(cm.season_phase == "offseason" and cm.championship_state.get("champion", "") == cm.team_name,
 		"The final winner is recorded as club champion")

@@ -219,3 +219,181 @@ All new and modified GDScript code must follow Object-Oriented Programming princ
 - [ ] `world.gd` contains no campaign state logic — only scene node wiring.
 - [ ] `ui.gd` contains no direct campaign state mutations.
 - [ ] `CampaignManager` holds no Godot `Node` references.
+
+## Follow-up — 2026-09-24T14:55:38Z
+
+Implement the complete Competition Rules and Tactical Combat Plan for Elemental Showdown (Godot 4.5.1, GDScript) following docs/COMBAT_AND_SERIES_IMPLEMENTATION_PLAN.md.
+
+Working directory: C:\Users\alexj\Documents\elemental-showdown
+Integrity mode: development
+
+---
+
+## Reference Material & Strict Game Constraints
+
+- Engine: Godot 4.5.1 stable (`D:\USB\Games\Godot_v4.5.1-stable_win64.exe\Godot_v4.5.1-stable_win64_console.exe`)
+- Headless test runner: `.\scripts\run_tests.ps1 -GodotPath 'D:\USB\Games\Godot_v4.5.1-stable_win64.exe\Godot_v4.5.1-stable_win64_console.exe'`
+- Working project root: `C:\Users\alexj\Documents\elemental-showdown`
+- Implementation Plan: `docs/COMBAT_AND_SERIES_IMPLEMENTATION_PLAN.md`
+- **Core Rules & Corrections**:
+  1. The starting support skill and attack skill, including their first forms, remain free at character creation. All later skills and forms require SP in the skill tree.
+  2. Implement in verified phases:
+     - Phase 1: 3v3 Best-of-3 semifinal, calendar, save/load, and UI first.
+     - Phase 2: Roster readiness gate and the 5v5 National final.
+     - Phase 3: Tactical combat mechanics (knockback, telegraphs, primers, layered terrain, reactions, momentum) after foundations pass tests.
+     - Assign one integrator to shared files so parallel work does not conflict.
+  3. Define overtime or judging for tied knockout games, simulate non-player series via deterministic seeded best-of reducers, and prevent the post-result Restart Match button from awarding rewards or recording the same game twice.
+  4. Add presets only for future national-team friendlies, the continental competition, and the national-team World Cup. Do not make unfinished brackets award trophies.
+  5. Numbers such as 12 collision damage and 50/100 momentum thresholds are initial tuning values; verify and balance them through playtesting.
+  6. Combat remains strictly turn-based. All skills come from the existing 72 skills and 3-form progression; do not invent new skill tree entries.
+  7. A series is several separate tactical battles on scheduled days, not several rounds inside one battle.
+
+---
+
+## Requirements
+
+### R1. Competition Rules & Season Series Scheduling
+- Define data-driven competition presets via small `MatchRules` snapshots:
+  - Street Duel: 1v1, Single Game.
+  - Club Friendly: 3v3 by default (optional 1/5 if both teams eligible), Single Game (no standings impact).
+  - City/Regional/National Club League: 3v3, Single Game (14 fixtures with current points/table).
+  - City/Regional Championship Semis & Final: 3v3, Best-of-3 (first to 2 wins).
+  - National Championship Semifinal: 3v3, Best-of-3.
+  - National Cup Final: 5v5, Best-of-5 (first to 3 wins; awards National Title & Space/Time choice upon clinch).
+  - Presets only for future national-team friendlies, the continental competition, and the national-team World Cup (no placeholder trophies).
+- Dedicated postseason calendar dates within the 224-day season:
+  - Semifinals: Days 199, 202, 205.
+  - Finals: Days 210, 213, 216, 220, 223 (use first 3 for Bo3 finals).
+  - Move pre-postseason national window to Week 25 to avoid collisions.
+  - All series dates are reserved up front. Later games display "if needed" on the calendar; when a team clinches, remaining dates become "not needed" (preserving history).
+- Non-player series simulation:
+  - Simulate every non-player semifinal/final using the same best-of reducer with a deterministic seeded result per game.
+- Tie-breaking:
+  - Overtime (up to 2 rounds where a KO ends the match) and judge scoring (surviving fighters, aggregate remaining HP fraction, damage dealt) for tied knockout games.
+- Roster readiness & deployment gate:
+  - Roster readiness milestones warn the player before mandatory 5v5 fixtures; provide clearly labeled emergency club signing/loan if roster would otherwise deadlock.
+  - Launch enforces EXACTLY N eligible, distinct fighters (no 3v5 matches, no fallback fighters in career matches).
+  - Skipping a game forfeits/simulates ONLY that specific scheduled game, advances the calendar, and awards zero played-game rewards.
+  - Jump to Match jumps to the next unresolved game, not the end of the series.
+
+### R2. Small OOP Domain Classes & Idempotent Career Boundary
+- Implement decoupled domain classes (using `RefCounted` for runtime rules, clean JSON at boundaries):
+  - `scripts/match_rules.gd`: Validated immutable rules snapshot (team size, best-of, substitutions, arena preset, edge rules, overtime/round limits, date spacing).
+  - `scripts/competition_rule_book.gd`: Factory producing named rule presets copied into scheduled fixtures.
+  - `scripts/series_state.gd`: Encapsulates series ID, teams, dates, per-team wins, unique recorded game IDs, and clinch determination (`record_game()` rejects duplicate game IDs and games after clinch).
+  - `scripts/match_context.gd`: Immutable launch snapshot (fixture ID, series ID, game ID, date, teams, rules, seed, arena ID) injected into `World` and HUD.
+  - `scripts/combat_action_resolver.gd`: Single shared action pipeline for player and enemy hits.
+  - `scripts/force_movement_resolver.gd`: Tile-by-tile displacement, occupancy, obstacle/wall collision damage and stagger.
+  - `scripts/attack_intent.gd`: Frozen telegraph snapshot (caster, form ID, origin, target tiles, countdown, interrupt criteria).
+  - `scripts/reaction_resolver.gd`: Universal once-per-round Guard/Counter/Intercept/Overwatch orders with documented trigger ordering.
+  - `scripts/combat_event.gd`: Structured combat event stream for HUD, logs, animations, and tests.
+  - `scripts/game_result.gd`: Immutable single-game outcome.
+  - `scripts/enemy_tactics.gd`: Heuristic scoring of legal actions, telegraphs, and reactions using visible board state and prior series tendencies.
+- Single responsibility boundaries:
+  - `CampaignManager` is the single persistent career owner and solely awards XP, gold, and clinch trophies.
+  - `BattleManager` is the single battle coordinator.
+  - `SeasonCalendar` owns deterministic calendar generation and fixture dates.
+  - `CampaignManager.complete_game(result)` must be atomic and idempotent: validates expected game ID, updates `SeriesState`, awards series trophy only on clinch, and rolls back in-memory changes if save fails.
+  - Prevent post-result Restart Match from awarding duplicate rewards or recording the same game twice (change to no-reward exhibition or remove for official fixtures).
+  - Backward compatibility: previous single-game saves seamlessly migrate without losing progress.
+
+### R3. Physical Board Resolution: Knockback, Walls & Collisions
+- Shared force movement resolves pushes tile-by-tile for forms that imply physical force.
+- Movement stops at the first blocking obstacle (arena boundary, fighter, earth wall, structure).
+- Collisions deal one impact damage packet (base 12 tuning) and apply stagger (max 1 stagger per target per action; no infinite chain-stuns).
+- Fighter-to-fighter collisions damage both combatants. Wall impacts damage the pushed combatant and deduct HP from destructible earth walls.
+- Grid overlay previews push trajectory arrows and likely collision destination without relying on red color alone.
+- AI factors collision damage into positional scoring.
+
+### R4. Telegraphed High-Impact Attacks & Elemental Primers
+- Telegraphed Attacks:
+  - Flag selected high-impact existing forms with `windup_rounds = 1`.
+  - Caster spends their turn's attack to lock origin, target area, and telegraph icon/danger tiles.
+  - Danger zone remains active through the opponent's entire response turn.
+  - At the start of the caster's next phase, resolve the frozen zone instead of granting an extra attack.
+  - Interruption: Knockout, stun, forced displacement, or destroyed required terrain cancels the intent.
+- Elemental Primer & Detonator Combos:
+  - Landed elemental attacks apply a target-owned primer token lasting one response window.
+  - A compatible subsequent elemental hit from a teammate consumes the primer and detonates a team reaction:
+    - Water + Lightning: Conductive shock (adjacent tile arc + short stun).
+    - Water + Fire: Scalding vapor (bonus armor-piercing damage + blind).
+    - Fire + Earth: Molten slag (burning ground hazard).
+    - Air + Status: Dispersal (spreads existing burn/wet/chill to adjacent legal targets).
+  - Reaction damage is non-priming (cannot infinitely recurse).
+
+### R5. Layered Terrain, Structures & Transparent Arena Presets
+- Refactor `BattleTerrain` into clear distinct layers:
+  - Structure (destructible earth walls with HP).
+  - Surface (fire, ice, water puddles with turn durations).
+  - Obscurant (smoke with sight/accuracy penalties).
+- Deterministic interaction order: direct hit -> extinguish/transform surfaces -> place new surfaces -> advance round durations.
+- Named arena presets (e.g. Standard Stadium, Cage Arena with shock fences, Dojo with ring-out boundaries) disclosed in match rules and previewed in deployment.
+
+### R6. Team Crowd Momentum & Universal Combat Reactions
+- Convert existing resonance gauge into independent team Crowd Momentum gauges (0–100 per side):
+  - Builds from counter-hits, elemental detonations, multi-tile knockbacks, and surviving telegraphed attacks. Decays slightly on passive turns.
+  - At 50% Momentum (initial tuning): "Crowd Roar" grants a modest once-per-round +1 move speed.
+  - At 100% Momentum (initial tuning): player can empower their next equipped form (+20% damage/healing or +1 terrain duration) with an ornate animation banner (not a new skill or free turn).
+- Universal Tactical Reactions (chosen at end-of-turn in lieu of attacking):
+  - Guard: Damage reduction and knockback immunity.
+  - Counter: Automatic basic strike against close-range melee attackers.
+  - Intercept: Defender dashes up to 2 tiles to absorb a hit directed at a designated ally.
+  - Overwatch: Reserve equipped ranged attack to strike the first enemy moving into its pattern.
+  - Documented trigger order: Overwatch on movement -> Intercept on targeting -> Guard on impact -> Counter on survival.
+
+### R7. Information Architecture, Calendar & Battle HUD
+- Hub Schedule Card: Displays competition name, opponent, format (3v3 / 5v5), series type (Single / Bo3 / Bo5), series score (e.g. "1 – 0"), game number, and next match date.
+- Monthly Calendar Popup: Displays individual cells for every potential series date (G1, G2, G3 if needed). Shows played / win / loss / next / if-needed / not-needed states with accessible symbols and colors.
+- Deployment Workbench: Read-only format badge, deployment count validation (Required N vs Deployed N), bench sub limits, and disabled Launch button with specific error message until exactly N legal units are placed.
+- Battle HUD & Overlays:
+  - Series header badge (e.g. "National Final · Game 2 of 5 · 1–0").
+  - Independent team momentum bars.
+  - Visual reaction choice badge & remaining trigger.
+  - Target-owned primer tokens and terrain turn/HP tooltip on hover.
+  - Patterned red enemy danger layer distinct from orange player attack targeting.
+- Result Modal:
+  - Distinguishes Game Result from Series Result.
+  - Displays series score tally, clinch status, and single-game reward summary.
+
+---
+
+## Acceptance Criteria
+
+### Phase 1: 3v3 Bo3 Semifinal, Calendar, Save/Load & UI
+- [ ] `MatchRules`, `CompetitionRuleBook`, and `SeriesState` domain classes implemented with unit tests.
+- [ ] Best-of-3 semifinal correctly scheduled on Days 199, 202, 205 within the 224-day calendar.
+- [ ] 2–0 series clinches and cancels Game 3 ("not needed"); 1–1 series advances to Game 3.
+- [ ] Monthly calendar popup displays G1, G2, G3 (if-needed / not-needed) with accessible symbols and Jump to Next Game.
+- [ ] Hub schedule card displays competition type, Bo3 series status, and current series score.
+- [ ] Skipping Game 1 simulates/forfeits Game 1 only and advances calendar without played-game rewards.
+- [ ] Save/load preserves series state, recorded game IDs, and migrates legacy saves without data corruption.
+- [ ] Tied knockout games resolve via overtime / judge decisions without crashing or deadlocking.
+- [ ] Non-player semifinals/finals simulate using deterministic seeded best-of reducers.
+- [ ] Post-result restart does not duplicate XP, money, or record duplicate games.
+
+### Phase 2: Roster Readiness & 5v5 National Final
+- [ ] 5v5 National final scheduled on Days 210, 213, 216, 220, 223. First team to 3 wins clinches National Cup & Space/Time choice.
+- [ ] Roster readiness milestone warns player in advance of 5v5 requirement, with emergency loan/signing fallback.
+- [ ] Deployment strictly enforces exactly 5 legal, distinct combatants (blocks launch with clear error if incomplete or mismatched).
+- [ ] Presets added for future national friendlies, continental cup, and national World Cup without awarding premature placeholder trophies.
+
+### Phase 3: Tactical Combat Mechanics & Physical Grid
+- [ ] Shared force movement executes tile-by-tile pushes, stopping at walls, fighters, and obstacles.
+- [ ] Wall and fighter collisions deal single impact damage packet and stagger without infinite loops.
+- [ ] Telegraphed attacks display distinct danger tiles across the opponent's turn and can be cancelled by displacement, stun, or KO.
+- [ ] Landed attacks apply primer tokens; compatible teammate attacks trigger single non-recursing detonations.
+- [ ] Layered `BattleTerrain` resolves structures, surfaces, and obscurants with deterministic order.
+- [ ] Team Crowd Momentum operates 0–100 per side, granting Crowd Roar at 50 and empowered action at 100.
+- [ ] Guard, Counter, Intercept, and Overwatch execute in documented priority order at most once per round.
+
+### Verification & Testing
+- [ ] New automated headless test suites pass:
+  - `test_match_rules.gd`
+  - `test_series_state.gd`
+  - `test_match_scheduling.gd`
+  - `test_combat_intents.gd`
+  - `test_force_movement.gd`
+  - `test_reaction_rules.gd`
+- [ ] Full existing test suite passes: `test_campaign_regressions.gd`, `test_campaign_loop.gd`, `test_fighter_generation.gd`, `test_multi_unit.gd`, `test_features.gd`, `test_strategy_and_stats.gd`, `test_multi_campaign_saves.gd`.
+- [ ] `.\scripts\run_tests.ps1` executes with 0 failures.
+- [ ] Visual capture verification at 1920x1080 confirms calendar popup, deployment, battle HUD, and result modal are clean, unclipped, and legible.

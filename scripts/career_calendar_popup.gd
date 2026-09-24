@@ -129,8 +129,40 @@ func _entry_text(entry: Dictionary) -> String:
 	for event in entry.get("events", []):
 		match str(event.get("type", "")):
 			"club_match": labels.append("Club match vs %s (%s)" % [event.get("opponent", "Rival"), "played" if event.get("played", false) else "scheduled"])
-			"championship_semifinals": labels.append("Club championship semifinal, if qualified")
-			"championship_final": labels.append("Club championship final, if qualified")
+			"championship_semifinals":
+				var g_num: int = int(event.get("game_number", 1))
+				var st: String = str(event.get("status", "scheduled"))
+				var desc: String = "Club championship semifinal G%d" % g_num
+				if event.has("opponent") and not str(event["opponent"]).is_empty():
+					desc += " vs %s" % event["opponent"]
+				if st == "not_needed":
+					desc += " (- Series clinched / Game not needed)"
+				elif st == "if_needed":
+					desc += " (? If series tied 1-1)"
+				elif st == "won":
+					desc += " (✔ Won)"
+				elif st == "lost":
+					desc += " (✕ Lost)"
+				elif st == "next":
+					desc += " (▶ Next game)"
+				labels.append(desc)
+			"championship_final":
+				var g_num: int = int(event.get("game_number", 1))
+				var st: String = str(event.get("status", "scheduled"))
+				var desc: String = "Club championship final G%d" % g_num
+				if event.has("opponent") and not str(event["opponent"]).is_empty():
+					desc += " vs %s" % event["opponent"]
+				if st == "not_needed":
+					desc += " (- Series clinched / Game not needed)"
+				elif st == "if_needed":
+					desc += " (? If needed)"
+				elif st == "won":
+					desc += " (✔ Won)"
+				elif st == "lost":
+					desc += " (✕ Lost)"
+				elif st == "next":
+					desc += " (▶ Next game)"
+				labels.append(desc)
 			"national_window": labels.append("National team %s window" % str(event.get("competition", "friendly")).replace("_", " ").capitalize())
 			"club_friendly": labels.append("Optional club friendly")
 	if entry.get("transfer_window", false): labels.append("Transfer window")
@@ -139,12 +171,33 @@ func _entry_text(entry: Dictionary) -> String:
 
 func _day_marker(entry: Dictionary, next_match: Dictionary) -> String:
 	if int(entry["season_day"]) == int(next_match.get("season_day", -1)):
-		return "MATCH\nvs %s" % str(next_match.get("enemy_team", "Rival"))
+		var opp := str(next_match.get("enemy_team", "Rival"))
+		if next_match.has("game_number"):
+			return "▶ G%d MATCH\nvs %s" % [int(next_match["game_number"]), opp]
+		return "MATCH\nvs %s" % opp
 	for event in entry.get("events", []):
 		match str(event.get("type", "")):
 			"club_match": return "MATCH\nvs %s" % str(event.get("opponent", "Rival"))
-			"championship_semifinals": return "SEMIFINAL"
-			"championship_final": return "FINAL"
+			"championship_semifinals":
+				var g_num: int = int(event.get("game_number", 1))
+				var status: String = str(event.get("status", ""))
+				if status == "won": return "✔ G%d\nWON" % g_num
+				elif status == "lost": return "✕ G%d\nLOST" % g_num
+				elif status == "next": return "▶ G%d\nNEXT" % g_num
+				elif status == "if_needed": return "? G%d\nIF NEEDED" % g_num
+				elif status == "not_needed": return "- G%d\nN/A" % g_num
+				var opp_str := ("\nvs " + str(event["opponent"])) if (event.has("opponent") and not str(event["opponent"]).is_empty()) else "\nSEMIS"
+				return "G%d%s" % [g_num, opp_str]
+			"championship_final":
+				var g_num: int = int(event.get("game_number", 1))
+				var status: String = str(event.get("status", ""))
+				if status == "won": return "✔ G%d\nWON" % g_num
+				elif status == "lost": return "✕ G%d\nLOST" % g_num
+				elif status == "next": return "▶ G%d\nNEXT" % g_num
+				elif status == "if_needed": return "? G%d\nIF NEEDED" % g_num
+				elif status == "not_needed": return "- G%d\nN/A" % g_num
+				var opp_str := ("\nvs " + str(event["opponent"])) if (event.has("opponent") and not str(event["opponent"]).is_empty()) else "\nFINAL"
+				return "G%d%s" % [g_num, opp_str]
 			"national_window": return "NATIONAL"
 			"club_friendly": return "FRIENDLY"
 	if entry.get("transfer_window", false): return "TRANSFER"
@@ -156,11 +209,14 @@ func _cell_style(day: int, marker: String) -> StyleBoxFlat:
 	style.set_border_width_all(1)
 	style.bg_color = Color(0.10, 0.14, 0.20)
 	style.border_color = Color(0.22, 0.29, 0.39)
-	if marker.begins_with("MATCH") or marker in ["SEMIFINAL", "FINAL"]:
+	if marker.find("MATCH") != -1 or marker.find("SEMIS") != -1 or marker.find("FINAL") != -1 or marker.find("G") != -1:
 		style.bg_color = Color(0.24, 0.16, 0.08)
 		style.border_color = Color(0.67, 0.42, 0.17)
 	elif marker == "NATIONAL": style.bg_color = Color(0.18, 0.12, 0.27)
 	elif marker == "FRIENDLY": style.bg_color = Color(0.08, 0.22, 0.23)
+	if marker.find("N/A") != -1:
+		style.bg_color = style.bg_color.darkened(0.6)
+		style.border_color = Color(0.2, 0.2, 0.25)
 	if day < campaign_manager.get_season_day(): style.bg_color = style.bg_color.darkened(0.45)
 	if day == campaign_manager.get_season_day():
 		style.border_color = Color(0.95, 0.82, 0.38)
