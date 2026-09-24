@@ -81,7 +81,7 @@ func _run():
 	cm.init_new_campaign({"player_name": "Ignis", "player_element": "fire", "team_name": "Blaze Legion"})
 	
 	assert_true(cm.unspent_skill_points == 2, "T2.1 Initial unspent skill points == 2")
-	assert_true(cm.unlocked_abilities.size() == 1, "T2.2 Initial unlocked abilities has starter skill")
+	assert_true(cm.unlocked_abilities.size() == 2 and cm.equipped_abilities == cm.unlocked_abilities, "T2.2 Both starter skills begin unlocked and equipped")
 	
 	# Unlock a new skill node
 	var unlock_res = cm.unlock_skill_node("Lightning")
@@ -231,4 +231,4 @@ func _run():
 		print("  ALL STRATEGY & COMBAT FIX TESTS PASSED!")
 	print("========================================================\n")
 	world.queue_free()
-	quit()
+	quit(1 if failed_tests > 0 else 0)

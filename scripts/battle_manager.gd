@@ -12,12 +12,14 @@ var current_state: State = State.PLAYER_MOVE
 var enemy = null
 var player = null
 var turn_count: int = 0
+var _enemy_sequence_running: bool = false
 
 # Multi-Unit Direct Squad Control
 var player_units: Array = []
 var enemy_units: Array = []
 var active_player_unit: Node2D = null
 var grid_overlay: Node2D = null
+var terrain: Node2D = null
 
 # Substitutions
 var match_format: String = "3v3"
@@ -126,6 +128,8 @@ func _is_enemy_unit(unit: Node2D) -> bool:
 	return false
 
 func check_elemental_fusion(new_elem: String, target: Node2D, cur_caster: Node2D = null) -> Dictionary:
+	if not is_instance_valid(target) or target.is_queued_for_deletion() or ("hp" in target and target.hp <= 0):
+		return {}
 	if recent_elemental_actions.is_empty():
 		return {}
 
@@ -280,6 +284,10 @@ func substitute_fighter(outgoing_node: Node2D, incoming_data: Dictionary = {}) -
 	return true
 
 func select_active_player_unit(unit: Node2D):
+	if current_state == State.ENEMY_TURN or current_state == State.BATTLE_OVER:
+		return
+	if is_instance_valid(active_player_unit) and active_player_unit.get("is_animating") == true:
+		return
 	if unit == null or not is_instance_valid(unit) or ("hp" in unit and unit.hp <= 0):
 		return
 	if active_player_unit != null and is_instance_valid(active_player_unit) and active_player_unit != unit:
@@ -287,6 +295,8 @@ func select_active_player_unit(unit: Node2D):
 			active_player_unit.grid_overlay.clear_grid()
 
 	active_player_unit = unit
+	if "grid_overlay" in unit and unit.grid_overlay != null:
+		unit.grid_overlay.player = unit
 	var ui = get_parent().get_node_or_null("UI") if get_parent() else null
 	var edata = get_node_or_null("/root/ElementData")
 
@@ -326,6 +336,8 @@ func select_active_player_unit(unit: Node2D):
 				unit._update_attack_range_display()
 			_notify_ui_turn("Attack [%s]: Select 1-4 skill, click target  |  Right-Click: Standby" % unit.name, true)
 	else:
+		if "grid_overlay" in unit and unit.grid_overlay != null:
+			unit.grid_overlay.clear_grid()
 		_notify_ui_turn("[%s]: Action complete. Choose another squadmate." % unit.name, true)
 
 func on_player_unit_acted(unit: Node2D):
@@ -358,6 +370,8 @@ func on_player_unit_acted(unit: Node2D):
 
 func end_squad_turn():
 	if current_state == State.BATTLE_OVER or current_state == State.ENEMY_TURN:
+		return
+	if is_instance_valid(active_player_unit) and active_player_unit.get("is_animating") == true:
 		return
 	print("[BattleManager] Squad turn manually concluded by player.")
 	for u in player_units:
@@ -409,9 +423,11 @@ func check_blitz_steal(arg1, arg2, arg3 = null, arg4 = null) -> bool:
 	return false
 
 func start_player_turn():
-	if current_state == State.BATTLE_OVER:
+	if current_state == State.BATTLE_OVER or _enemy_sequence_running:
 		return
 	turn_count += 1
+	if terrain and is_instance_valid(terrain): terrain.tick_round()
+	if current_state == State.BATTLE_OVER: return
 	current_state = State.PLAYER_MOVE
 	print("[BattleManager] --- Turn %d: Player Move Phase ---" % turn_count)
 
@@ -424,6 +440,8 @@ func start_player_turn():
 			u.has_moved = false
 			if u.has_method("start_turn"):
 				u.start_turn()
+			if current_state == State.BATTLE_OVER:
+				return
 
 	var first_ready = null
 	if player != null and is_instance_valid(player) and ("hp" not in player or player.hp > 0):
@@ -495,7 +513,7 @@ func check_battle_end_conditions() -> bool:
 	return false
 
 func start_enemy_turn():
-	if current_state == State.BATTLE_OVER:
+	if current_state == State.BATTLE_OVER or _enemy_sequence_running or current_state == State.ENEMY_TURN:
 		return
 	if check_battle_end_conditions():
 		return
@@ -542,15 +560,14 @@ func start_enemy_turn():
 		player_wins()
 		return
 
-	if live_enemies.size() == 1:
-		live_enemies[0].take_turn()
-	else:
-		_run_enemies_sequence(live_enemies)
+	_run_enemies_sequence(live_enemies)
 
 func _run_enemies_sequence(live_enemies: Array):
+	# One owner advances the round, after every enemy's full action resolves.
+	_enemy_sequence_running = true
 	for e in live_enemies:
 		if current_state == State.BATTLE_OVER:
-			return
+			break
 		if is_instance_valid(e) and ("hp" not in e or e.hp > 0):
 			var ui = get_parent().get_node_or_null("UI") if get_parent() else null
 			if ui:
@@ -560,19 +577,11 @@ func _run_enemies_sequence(live_enemies: Array):
 					var e_sta = e.stamina if "stamina" in e else 100
 					var e_max_sta = e.max_stamina if "max_stamina" in e else 100
 					ui.update_enemy_stats(e.hp, e.max_hp, e.mp, e.max_mp, e_sta, e_max_sta)
-			e.take_turn()
-			var anim_ticks = 0
-			while is_instance_valid(e) and e.is_animating:
-				await get_tree().create_timer(0.05).timeout
-				anim_ticks += 1
-				if anim_ticks >= 100:
-					print("[BattleManager] Animation wait timeout for %s — force clearing is_animating" % e.name)
-					e.is_animating = false
-					break
-			await get_tree().create_timer(0.2).timeout
+			await e.take_turn()
 			if check_battle_end_conditions():
-				return
+				break
 
+	_enemy_sequence_running = false
 	if current_state != State.BATTLE_OVER:
 		start_player_turn()
 
@@ -581,15 +590,15 @@ func player_wins():
 		return
 	current_state = State.BATTLE_OVER
 	print("[BattleManager] === VICTORY! (Turn %d) ===" % turn_count)
-	if player and player.has_method("gain_xp"):
-		player.gain_xp(60)
-
 	var cm = get_node_or_null("/root/CampaignManager")
+	var xp_awarded := 0
 	if cm and cm.has_active_campaign:
-		cm.record_match_result(true, 60)
+		xp_awarded = cm.record_match_result(true, 60)
+		if player and player.has_method("sync_campaign_progression"):
+			player.sync_campaign_progression(cm)
 		cm.save_campaign()
 
-	_notify_ui_result(true, 60, turn_count)
+	_notify_ui_result(true, xp_awarded, turn_count)
 	emit_signal("battle_ended", "victory")
 
 func player_loses():
@@ -599,11 +608,14 @@ func player_loses():
 	print("[BattleManager] === DEFEAT! (Turn %d) ===" % turn_count)
 
 	var cm = get_node_or_null("/root/CampaignManager")
+	var xp_awarded := 0
 	if cm and cm.has_active_campaign:
-		cm.record_match_result(false, 25)
+		xp_awarded = cm.record_match_result(false, 25)
+		if player and player.has_method("sync_campaign_progression"):
+			player.sync_campaign_progression(cm)
 		cm.save_campaign()
 
-	_notify_ui_result(false, 25, turn_count)
+	_notify_ui_result(false, xp_awarded, turn_count)
 	emit_signal("battle_ended", "defeat")
 
 func _notify_ui_turn(label: String, is_player: bool):

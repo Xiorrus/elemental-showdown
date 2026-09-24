@@ -3,6 +3,9 @@
 # Features tactical corner brackets, exact color palettes, and single-screen vertical proportions.
 extends Control
 
+const CareerCalendarPopupScript = preload("res://scripts/career_calendar_popup.gd")
+const ScoutingCatalogScript = preload("res://scripts/scouting_catalog.gd")
+
 # Top Header Bar
 @onready var lbl_engine = $HeaderBar/LblEngine
 @onready var lbl_district = $HeaderBar/PillDistrict/HBox/LblDistrict
@@ -79,6 +82,7 @@ extends Control
 	$MainTabs/TabSchedule/TimelineSection/TimelineHBox/Day6,
 	$MainTabs/TabSchedule/TimelineSection/TimelineHBox/Day7
 ]
+@onready var btn_open_calendar = $MainTabs/TabSchedule/TimelineSection/CalendarOpenButton
 
 # Bottom Dock
 @onready var dock_buttons = [
@@ -93,11 +97,11 @@ extends Control
 @onready var btn_launch_arena = $MainTabs/TabBattle/VB/HBoxMain/IntelPanel/VB/BtnLaunchArena
 
 # Player Tab
-@onready var lbl_player_stats = $MainTabs/TabSkills/HBox/ProfileCol/PanelStats/Margin/VB/LblStats
-@onready var btn_save = $MainTabs/TabSkills/HBox/ProfileCol/PanelActions/Margin/VB/BtnSave
-@onready var btn_dev = $MainTabs/TabSkills/HBox/ProfileCol/PanelActions/Margin/VB/BtnDevUnlock
-@onready var btn_menu = $MainTabs/TabSkills/HBox/ProfileCol/PanelActions/Margin/VB/BtnMainMenu
-@onready var save_feedback = $MainTabs/TabSkills/HBox/ProfileCol/PanelActions/Margin/VB/SaveFeedback
+@onready var lbl_player_stats = $MainTabs/TabSkills/HBox/ProfileCol/Content/PanelStats/Margin/VB/LblStats
+@onready var btn_save = $MainTabs/TabSkills/HBox/ProfileCol/Content/PanelActions/Margin/VB/BtnSave
+@onready var btn_dev = $MainTabs/TabSkills/HBox/ProfileCol/Content/PanelActions/Margin/VB/BtnDevUnlock
+@onready var btn_menu = $MainTabs/TabSkills/HBox/ProfileCol/Content/PanelActions/Margin/VB/BtnMainMenu
+@onready var save_feedback = $MainTabs/TabSkills/HBox/ProfileCol/Content/PanelActions/Margin/VB/SaveFeedback
 @onready var equipped_skills_box = $MainTabs/TabSkills/HBox/EquippedCol/VBox
 @onready var unlocked_skills_box = $MainTabs/TabSkills/HBox/LibraryCol/Scroll/VBox
 @onready var btn_item_draught = $MainTabs/TabSkills/HBox/LibraryCol/ConsumablesBox/BtnDraught
@@ -113,6 +117,8 @@ var cm: Node = null
 var edata: Node = null
 var active_nav_index: int = 0
 var cinzel_font: Font = null
+var _pending_deployment_match: Dictionary = {}
+var _portrait_textures: Dictionary = {}
 
 func _get_element_data() -> Node:
 	if edata == null:
@@ -162,6 +168,7 @@ func _ready():
 	btn_act_train.pressed.connect(_on_activity_train)
 	btn_act_street.pressed.connect(_on_activity_street)
 	btn_act_rest.pressed.connect(_on_activity_rest)
+	btn_open_calendar.pressed.connect(_open_calendar)
 	if cinzel_font:
 		btn_act_street.add_theme_font_override("font", cinzel_font)
 
@@ -177,15 +184,9 @@ func _ready():
 	_style_tactical_button(btn_dev, Color(0.06, 0.08, 0.12, 0.7), Color(0.22, 0.28, 0.38, 0.4), Color(0.5, 0.55, 0.65), 9, false)
 
 	# Consumables
-	btn_item_draught.pressed.connect(func():
-		cm.restore_energy(30)
-		_refresh_all()
-	)
-	btn_item_elixir.pressed.connect(func():
-		cm.player_xp += 25
-		cm._check_level_up()
-		_refresh_all()
-	)
+	# Consumables have no inventory yet; do not grant unlimited free resources.
+	btn_item_draught.disabled = true
+	btn_item_elixir.disabled = true
 
 	# Refresh Timeline dynamically based on campaign day
 	_refresh_timeline()
@@ -214,6 +215,39 @@ func _get_element_color(elem: String) -> Color:
 		"earth": return Color(0.85, 0.65, 0.20)
 		"air": return Color(0.20, 0.78, 0.65)
 		_: return Color(0.75, 0.82, 0.92)
+
+func _make_portrait(element: String) -> TextureRect:
+	# Container-managed portraits stay inside their frame when the UI resizes.
+	var portrait = TextureRect.new()
+	portrait.name = "Portrait"
+	portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	portrait.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if not _portrait_textures.has(element):
+		var path = "res://assets/%s_walk.png" % element.to_lower()
+		if ResourceLoader.exists(path):
+			var sheet: Texture2D = load(path)
+			var frame_size = Vector2i(sheet.get_width() / 4, sheet.get_height() / 4)
+			var frame = sheet.get_image().get_region(Rect2i(Vector2i.ZERO, frame_size))
+			var atlas = AtlasTexture.new()
+			atlas.atlas = sheet
+			atlas.region = Rect2(frame.get_used_rect().grow(4).intersection(Rect2i(Vector2i.ZERO, frame_size)))
+			_portrait_textures[element] = atlas
+	portrait.texture = _portrait_textures.get(element)
+	return portrait
+
+func _player_max_hp() -> int:
+	var element = edata.ELEMENTS.get(cm.player_element, {}) if edata else {}
+	return int(element.get("base_hp", 100)) + (cm.player_level - 1) * 10
+
+func _player_featured_skill_label() -> String:
+	var labels := PackedStringArray()
+	for skill in cm.equipped_abilities:
+		labels.append(str(skill).capitalize().replace("_", " "))
+		if labels.size() == 2:
+			break
+	return " • ".join(labels) if not labels.is_empty() else "Strike"
 
 func _style_tactical_button(btn: Button, normal_bg: Color, border_c: Color, font_c: Color, font_size: int = 11, glow: bool = false):
 	if not btn: return
@@ -281,61 +315,97 @@ func _style_secondary_slate_button(btn: Button, font_size: int = 11):
 	btn.add_theme_stylebox_override("pressed", UITheme.make_btn_secondary(false, true))
 	btn.add_theme_stylebox_override("focus", UITheme.make_btn_secondary(true, false))
 
+func _get_season_summary() -> Dictionary:
+	if cm and cm.has_method("get_season_summary"):
+		var summary = cm.get_season_summary()
+		if summary is Dictionary:
+			return summary
+	return {}
+
+func _season_standings(summary: Dictionary) -> Array:
+	var rows = summary.get("standings", [])
+	if not (rows is Array):
+		return []
+	var result: Array = []
+	for row in rows:
+		if row is Dictionary:
+			result.append(row)
+	result.sort_custom(func(a, b):
+		if int(a.get("points", 0)) != int(b.get("points", 0)):
+			return int(a.get("points", 0)) > int(b.get("points", 0))
+		if int(a.get("score_difference", 0)) != int(b.get("score_difference", 0)):
+			return int(a.get("score_difference", 0)) > int(b.get("score_difference", 0))
+		return str(a.get("team", "")) < str(b.get("team", ""))
+	)
+	return result
+
+func _player_standing(summary: Dictionary) -> Dictionary:
+	var rows = _season_standings(summary)
+	for i in range(rows.size()):
+		if str(rows[i].get("team", "")).to_lower() == cm.team_name.to_lower():
+			var standing = rows[i].duplicate()
+			standing["rank"] = i + 1
+			standing["team_count"] = rows.size()
+			return standing
+	return {}
+
 func _refresh_timeline():
-	if not cm: return
-	var cur_day = cm.campaign_day
+	if not cm:
+		return
+	var summary = _get_season_summary()
+	var club_season = cm.has_team and bool(summary.get("active", false))
+	var current_slot = maxi(1, int(summary.get("week", 1))) if club_season else maxi(1, cm.campaign_day)
+	var last_slot = 32 if club_season else current_slot + 3
+	var first_slot = clampi(current_slot - 3, 1, maxi(1, last_slot - 6))
+	var title = $MainTabs/TabSchedule/TimelineSection/Title
+	if club_season:
+		var season_number = maxi(1, int(summary.get("season_number", 1)))
+		var month = clampi(int(summary.get("month", 1)), 1, 8)
+		title.text = "◆ Season %d • Month %d/8 • Day %d/224 • Week %d/32" % [season_number, month, cm.get_season_day(), mini(current_slot, 32)]
+		var national_window = summary.get("national_window", [])
+		if national_window is Array and not national_window.is_empty():
+			title.text += " • International window (future)"
+	else:
+		title.text = "◆ Street Circuit • Day %d" % current_slot
+	btn_open_calendar.visible = club_season
 	for i in range(timeline_days.size()):
 		var day_node = timeline_days[i]
-		if not day_node: continue
-		var day_num = i + 1
+		if not day_node:
+			continue
 		var lbl = day_node.get_node_or_null("L")
-		if not lbl: continue
-
-		if day_num < cur_day:
-			lbl.text = "Day %d • Clear" % day_num
+		if not lbl:
+			continue
+		var slot = first_slot + i
+		var prefix = "W" if club_season else "D"
+		if slot < current_slot:
+			lbl.text = "%s%d • Done" % [prefix, slot]
 			lbl.add_theme_color_override("font_color", Color(0.35, 0.85, 0.55, 0.9))
-			var sb = StyleBoxFlat.new()
-			sb.bg_color = Color(0.05, 0.08, 0.09, 0.85)
-			sb.border_width_left = 1
-			sb.border_width_top = 1
-			sb.border_width_right = 1
-			sb.border_width_bottom = 1
-			sb.border_color = Color(0.18, 0.35, 0.28, 0.7)
-			sb.set_corner_radius_all(4)
-			day_node.add_theme_stylebox_override("panel", sb)
-		elif day_num == cur_day:
-			lbl.text = "Day %d • Active" % day_num
+		elif slot == current_slot:
+			lbl.text = "%s%d • Now" % [prefix, slot]
 			lbl.add_theme_color_override("font_color", Color(0.04, 0.06, 0.08, 1.0))
-			var sb = StyleBoxFlat.new()
-			sb.bg_color = Color(0.85, 0.68, 0.22, 1.0) # Burnished gold
-			sb.border_width_left = 1
-			sb.border_width_top = 1
-			sb.border_width_right = 1
-			sb.border_width_bottom = 1
-			sb.border_color = Color(1.0, 0.88, 0.45, 0.9)
-			sb.set_corner_radius_all(4)
-			day_node.add_theme_stylebox_override("panel", sb)
 		else:
-			if day_num == 7:
-				lbl.text = "Day 7 • Boss"
-				lbl.add_theme_color_override("font_color", Color(0.9, 0.3, 0.35, 0.8))
-			else:
-				lbl.text = "Day %d" % day_num
-				lbl.add_theme_color_override("font_color", Color(0.55, 0.62, 0.72, 0.8))
-			var sb = StyleBoxFlat.new()
+			lbl.text = "%s%d" % [prefix, slot]
+			lbl.add_theme_color_override("font_color", Color(0.55, 0.62, 0.72, 0.8))
+		var sb = StyleBoxFlat.new()
+		sb.set_corner_radius_all(4)
+		sb.set_border_width_all(1)
+		if slot < current_slot:
+			sb.bg_color = Color(0.05, 0.08, 0.09, 0.85)
+			sb.border_color = Color(0.18, 0.35, 0.28, 0.7)
+		elif slot == current_slot:
+			sb.bg_color = Color(0.85, 0.68, 0.22, 1.0)
+			sb.border_color = Color(1.0, 0.88, 0.45, 0.9)
+		else:
 			sb.bg_color = Color(0.06, 0.08, 0.12, 0.90)
-			sb.border_width_left = 1
-			sb.border_width_top = 1
-			sb.border_width_right = 1
-			sb.border_width_bottom = 1
 			sb.border_color = Color(0.16, 0.22, 0.32, 0.5)
-			sb.set_corner_radius_all(4)
-			day_node.add_theme_stylebox_override("panel", sb)
+		day_node.add_theme_stylebox_override("panel", sb)
 
 func _style_enter_battle_button():
 	_style_primary_gold_button(btn_enter_match, 14)
 
 func _switch_tab(index: int):
+	if index != 2:
+		_pending_deployment_match.clear()
 	active_nav_index = index
 	main_tabs.current_tab = index
 
@@ -424,11 +494,11 @@ func _refresh_all():
 	var s_val = cm.shards if "shards" in cm else 0
 	lbl_gold.text = "%s G" % _format_number(g_val)
 	lbl_shards.text = _format_number(s_val)
-	lbl_stamina.text = "Stamina %d/100" % cm.energy
+	lbl_stamina.text = "Energy %d/100" % cm.energy
 
 	# District pill
 	if not cm.has_team:
-		lbl_district.text = "Bronze Circuit • Street Circuit (1v1)"
+		lbl_district.text = "Street Circuit • Free Agent (1v1)"
 	else:
 		lbl_district.text = "%s • %s" % [cm.current_league, cm.team_name]
 
@@ -437,17 +507,45 @@ func _refresh_all():
 	var card_title = $MainTabs/TabSchedule/LeagueCampaignCard/Title
 	var card_obj = $MainTabs/TabSchedule/LeagueCampaignCard/HBoxObj/Objective
 	var pill_gauge_lbl = $MainTabs/TabSchedule/LeagueCampaignCard/PromotionHBox/PillGauge/Lbl
+	var season_summary = _get_season_summary()
+	var club_season = cm.has_team and bool(season_summary.get("active", false))
+	var offer_ready = not cm.has_team and cm.recruitment_offer_pending
 
 	if not cm.has_team:
 		if card_eyebrow: card_eyebrow.text = "Unsanctioned Street Duels"
-		if card_title: card_title.text = "Street Circuit — Underground Brawls"
-		if card_obj: card_obj.text = "Objective: Win 3 street duels to earn team recruitment offers (%d/3 Wins)" % cm.street_wins
+		if card_title: card_title.text = "Club Offer Ready" if offer_ready else "Street Circuit — Underground Brawls"
+		if card_obj:
+			card_obj.text = "Scout offer earned • Accept below to begin your club career" if offer_ready else "Win 3 street duels to earn a club offer (%d/3 Wins)" % cm.street_wins
 		if pill_gauge_lbl: pill_gauge_lbl.text = "◆ Team Scout Progress"
-		var progress_pct = (float(cm.street_wins) / 3.0) * 100.0
+		var progress_pct = minf(100.0, (float(cm.street_wins) / 3.0) * 100.0)
 		if promotion_gauge:
 			promotion_gauge.set_value(progress_pct)
-		lbl_promotion_val.text = "%d/3 Wins ◆" % cm.street_wins
+		lbl_promotion_val.text = "%d/3 Wins ◆" % mini(cm.street_wins, 3)
 		badge_cp.text = "Fighter CP: %d" % cm.get_combat_power()
+	elif club_season:
+		var season_num = maxi(1, int(season_summary.get("season_number", 1)))
+		var week = clampi(int(season_summary.get("week", 1)), 1, 32)
+		var month = clampi(int(season_summary.get("month", 1)), 1, 8)
+		var phase = str(season_summary.get("phase", "club_regular"))
+		var phase_label = "Club League"
+		if phase == "club_semifinal":
+			phase_label = "League Championship • Semifinal"
+		elif phase == "club_final":
+			phase_label = "National Cup • Final" if cm.league_tier == 3 else "League Championship • Final"
+		elif phase == "offseason":
+			phase_label = "Offseason"
+		if card_eyebrow: card_eyebrow.text = "%s • Month %d of 8" % [phase_label, month]
+		if card_title: card_title.text = "%s • Season %d" % [cm.current_league, season_num]
+		var upcoming = season_summary.get("next_match", {})
+		var opponent = str(upcoming.get("enemy_team", "To be announced")) if upcoming is Dictionary else "To be announced"
+		var fixture_week = clampi(int(upcoming.get("week", week)), 1, 32) if upcoming is Dictionary else week
+		if card_obj:
+			card_obj.text = "Season complete • Final standings are in" if phase == "offseason" else "Next: vs %s • Week %d/32" % [opponent, fixture_week]
+		if pill_gauge_lbl: pill_gauge_lbl.text = "◆ Season Progress"
+		if promotion_gauge:
+			promotion_gauge.set_value(100.0 * float(week) / 32.0)
+		lbl_promotion_val.text = "Month %d/8 • W%d/32" % [month, week]
+		badge_cp.text = "Crew CP: %d" % cm.get_combat_power()
 	else:
 		if card_eyebrow: card_eyebrow.text = "League Tournament Schedule"
 		if card_title: card_title.text = "%s — Round %d" % [cm.current_league, cm.league_round]
@@ -462,7 +560,14 @@ func _refresh_all():
 		badge_cp.text = "Crew CP: %d" % cm.get_combat_power()
 
 	if badge_streak:
-		badge_streak.text = "Streak: %dW" % cm.win_streak if cm.win_streak > 0 else "Streak: --"
+		if club_season:
+			var standing = _player_standing(season_summary)
+			if not standing.is_empty() and int(standing.get("played", 0)) > 0:
+				badge_streak.text = "#%d/%d • %d PTS" % [standing.get("rank", 0), standing.get("team_count", 0), standing.get("points", 0)]
+			else:
+				badge_streak.text = "Unranked • 0 PTS"
+		else:
+			badge_streak.text = "Streak: %dW" % cm.win_streak if cm.win_streak > 0 else "Streak: --"
 
 	# 3. Lineup Cards on Hub Schedule Tab
 	var trio_header_title = $MainTabs/TabSchedule/TrioHeader/Title
@@ -494,10 +599,10 @@ func _refresh_all():
 			"level": cm.player_level,
 			"role": "Striker",
 			"archetype": "Striker",
-			"hp": 90 + (cm.player_level - 1) * 10,
+			"hp": _player_max_hp(),
 			"speed": cm.player_speed,
 			"potency": cm.player_potency,
-			"skill": cm.equipped_abilities[0] if cm.equipped_abilities.size() > 0 else "Strike",
+			"skill_label": _player_featured_skill_label(),
 			"is_captain": true,
 			"pos_tag": "◆ Solo Combatant: Free Agent"
 		})
@@ -518,10 +623,10 @@ func _refresh_all():
 			"level": cm.player_level,
 			"role": "Captain",
 			"archetype": "Striker",
-			"hp": 90 + (cm.player_level - 1) * 10,
+			"hp": _player_max_hp(),
 			"speed": cm.player_speed,
 			"potency": cm.player_potency,
-			"skill": cm.equipped_abilities[0] if cm.equipped_abilities.size() > 0 else "Strike",
+			"skill_label": _player_featured_skill_label(),
 			"is_captain": true,
 			"pos_tag": "◆ Pos. 1: Vanguard (Captain)"
 		})
@@ -565,7 +670,43 @@ func _refresh_all():
 
 	# 4. Next Clash Details
 	var next_m = cm.get_next_scheduled_match()
-	if not next_m.is_empty():
+	if cm.pending_element_choice:
+		lbl_next_match_tag.text = "Career Milestone • New Element"
+		lbl_next_opp_name.text = "Choose your next elemental discipline"
+		lbl_next_xp_reward.text = "SP Skills"
+		lbl_next_gold_reward.text = "New Path"
+		lbl_next_opp_details.text = "Learn its techniques in the skill tree with SP"
+		lbl_next_opp_counter.text = "Your original element and skills stay available."
+		btn_enter_match.text = "Choose Element"
+		btn_enter_match.disabled = false
+	elif cm.primordial_choice_pending:
+		lbl_next_match_tag.text = "National Cup • Primordial Choice"
+		lbl_next_opp_name.text = "Choose Space or Time"
+		lbl_next_xp_reward.text = "Endgame Path"
+		lbl_next_gold_reward.text = "Cup Title"
+		lbl_next_opp_details.text = "A later World Cup and Club World Cup earn skill permits"
+		lbl_next_opp_counter.text = "Techniques still cost SP in the skill tree."
+		btn_enter_match.text = "Choose Space / Time"
+		btn_enter_match.disabled = false
+	elif cm.world_cup_reward_pending:
+		lbl_next_match_tag.text = "World Cup • Champion Reward"
+		lbl_next_opp_name.text = "Choose a primordial reward"
+		lbl_next_xp_reward.text = "World Cup"
+		lbl_next_gold_reward.text = "Choice"
+		lbl_next_opp_details.text = "Unlock the other element or one extra skill permit"
+		lbl_next_opp_counter.text = "New skills still require SP in the tree."
+		btn_enter_match.text = "Choose Reward"
+		btn_enter_match.disabled = false
+	elif offer_ready:
+		lbl_next_match_tag.text = "Scout Offer • Club Career"
+		lbl_next_opp_name.text = "%s invite you to join" % cm.recruitment_offer_club
+		lbl_next_xp_reward.text = "3/3 Wins"
+		lbl_next_gold_reward.text = "3v3 Club"
+		lbl_next_opp_details.text = "Your element stays %s through City level" % cm.player_element.capitalize()
+		lbl_next_opp_counter.text = "Accept to start the eight-month club season."
+		btn_enter_match.text = "Accept Club Offer"
+		btn_enter_match.disabled = false
+	elif not next_m.is_empty():
 		if not cm.has_team:
 			if lbl_next_match_tag:
 				lbl_next_match_tag.text = "Next Street Duel: Match %d" % (cm.street_wins + 1)
@@ -580,6 +721,23 @@ func _refresh_all():
 			lbl_next_opp_counter.text = _get_element_matchup_hint(cm.player_element, next_m.get("enemy_element", "water"))
 			btn_enter_match.text = "Enter Street Duel"
 			btn_enter_match.disabled = false
+		elif club_season:
+			var season_week = clampi(int(next_m.get("week", season_summary.get("week", 1))), 1, 32)
+			var days_until = cm.get_days_until_next_match()
+			var phase = str(season_summary.get("phase", "club_regular"))
+			var match_label = "Club League"
+			if phase == "club_semifinal":
+				match_label = "Championship Semifinal"
+			elif phase == "club_final":
+				match_label = "National Cup Final" if cm.league_tier == 3 else "Championship Final"
+			lbl_next_match_tag.text = "Week %d/32 • %s" % [season_week, match_label]
+			lbl_next_xp_reward.text = "+60 XP"
+			lbl_next_gold_reward.text = "+200 G"
+			lbl_next_opp_name.text = "vs %s • Scrapfield Arena" % next_m.get("enemy_team", "Rival Club")
+			lbl_next_opp_details.text = "%s • %s day(s) away" % [next_m.get("date_label", "Match day"), days_until] if days_until > 0 else "Today • Captain: %s" % next_m.get("enemy_captain", "Opponent")
+			lbl_next_opp_counter.text = _get_element_matchup_hint(cm.player_element, next_m.get("enemy_element", "neutral"))
+			btn_enter_match.text = "Match in %d days" % days_until if days_until > 0 else "Enter Match"
+			btn_enter_match.disabled = days_until > 0
 		else:
 			if lbl_next_match_tag:
 				lbl_next_match_tag.text = "Next Tournament Match: Round %d" % cm.league_round
@@ -596,10 +754,15 @@ func _refresh_all():
 			btn_enter_match.disabled = false
 	else:
 		if lbl_next_match_tag:
-			lbl_next_match_tag.text = "Circuit Complete"
-		lbl_next_opp_name.text = "All clashes complete"
-		btn_enter_match.text = "Circuit Complete"
-		btn_enter_match.disabled = true
+			lbl_next_match_tag.text = "Season Complete" if club_season else "Circuit Complete"
+		var offseason = club_season and str(season_summary.get("phase", "")) == "offseason"
+		lbl_next_opp_name.text = "Start the next club season" if offseason else ("No match currently scheduled" if club_season else "All clashes complete")
+		lbl_next_xp_reward.text = ""
+		lbl_next_gold_reward.text = ""
+		lbl_next_opp_details.text = ""
+		lbl_next_opp_counter.text = "Promotion and relegation are settled; your club continues." if offseason else ""
+		btn_enter_match.text = "Next Season" if offseason else "No Match Available"
+		btn_enter_match.disabled = not offseason
 
 	# Refresh Timeline dynamically
 	_refresh_timeline()
@@ -634,7 +797,9 @@ func _populate_fighter_card(card_node: PanelContainer, data: Dictionary):
 	if c_move: c_move.text = str(int(round(float(data.get("speed", 3)))))
 	if c_hp: c_hp.text = str(int(round(float(data.get("hp", 100)))))
 	if c_atk: c_atk.text = str(int(round(float(data.get("potency", 30)))))
-	if c_banner: c_banner.text = data.get("skill", "Strike").capitalize().replace("_", " ")
+	if c_banner:
+		c_banner.text = data.get("skill_label", str(data.get("skill", "Strike")).capitalize().replace("_", " "))
+		c_banner.tooltip_text = c_banner.text
 
 	if c_sprite:
 		c_sprite.visible = true
@@ -861,16 +1026,7 @@ func _render_cultivation_top_bar():
 	av_sb.border_color = _get_element_color(cm.player_element)
 	av_p.add_theme_stylebox_override("panel", av_sb)
 
-	var spr = Sprite2D.new()
-	var sp_path = "res://assets/%s_walk.png" % cm.player_element.to_lower()
-	if ResourceLoader.exists(sp_path):
-		spr.texture = load(sp_path)
-		spr.hframes = 4
-		spr.vframes = 4
-		spr.frame = 0
-		spr.position = Vector2(22, 22)
-		spr.scale = Vector2(0.70, 0.70)
-	av_p.add_child(spr)
+	av_p.add_child(_make_portrait(cm.player_element))
 	s_hb.add_child(av_p)
 
 	# Identity VBox
@@ -975,32 +1131,6 @@ func _render_cultivation_top_bar():
 	spacer2.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	s_hb.add_child(spacer2)
 
-	# Consumables Pouch
-	var pouch_hb = HBoxContainer.new()
-	pouch_hb.add_theme_constant_override("separation", 6)
-	s_hb.add_child(pouch_hb)
-
-	var btn_draught = Button.new()
-	btn_draught.text = "Stamina Draught (+30)"
-	btn_draught.custom_minimum_size = Vector2(0, 30)
-	_style_secondary_slate_button(btn_draught, 9)
-	btn_draught.pressed.connect(func():
-		cm.restore_energy(30)
-		_refresh_all()
-	)
-	pouch_hb.add_child(btn_draught)
-
-	var btn_elixir = Button.new()
-	btn_elixir.text = "Focus Elixir (+25 XP)"
-	btn_elixir.custom_minimum_size = Vector2(0, 30)
-	_style_secondary_slate_button(btn_elixir, 9)
-	btn_elixir.pressed.connect(func():
-		cm.player_xp += 25
-		cm._check_level_up()
-		_refresh_all()
-	)
-	pouch_hb.add_child(btn_elixir)
-
 	# 2. Subpage Navigation Tabs Bar
 	var subnav_hb = HBoxContainer.new()
 	subnav_hb.add_theme_constant_override("separation", 8)
@@ -1037,7 +1167,7 @@ func _render_cultivation_overview():
 	if not profile_col: return
 
 	# 1. Update Profile & Real Combat Stats
-	var p_stats_panel = $MainTabs/TabSkills/HBox/ProfileCol/PanelStats
+	var p_stats_panel = $MainTabs/TabSkills/HBox/ProfileCol/Content/PanelStats
 	if p_stats_panel:
 		if p_stats_panel.get_script() != null:
 			p_stats_panel.set_script(null)
@@ -1056,7 +1186,7 @@ func _render_cultivation_overview():
 		p_sb.content_margin_bottom = 10
 		p_stats_panel.add_theme_stylebox_override("panel", p_sb)
 
-	var panel_stats = $MainTabs/TabSkills/HBox/ProfileCol/PanelStats/Margin/VB
+	var panel_stats = $MainTabs/TabSkills/HBox/ProfileCol/Content/PanelStats/Margin/VB
 	var p_title = panel_stats.get_node_or_null("Title")
 	if p_title:
 		p_title.text = "Attribute Allocation"
@@ -1155,7 +1285,7 @@ func _render_cultivation_overview():
 			btn_pls.disabled = (cm.unspent_stat_points <= 0)
 
 	# Style PanelActions
-	var panel_actions_container = $MainTabs/TabSkills/HBox/ProfileCol/PanelActions
+	var panel_actions_container = $MainTabs/TabSkills/HBox/ProfileCol/Content/PanelActions
 	if panel_actions_container:
 		if panel_actions_container.get_script() != null:
 			panel_actions_container.set_script(null)
@@ -1228,10 +1358,10 @@ func _render_cultivation_overview():
 	med_vb.add_child(med_title)
 
 	var med_notes = [
-		"◆ Active Regime: Aether Condensation (+15% XP gain)",
-		"◆ Element Attunement: %s Harmony (+10%% poise & stability)" % cm.player_element.capitalize(),
-		"◆ Physical Status: Optimal for competitive tournament clashes",
-		"◆ Injury Status: Uninjured (Full stamina pool available)"
+		"◆ Element Attunement: %s" % cm.player_element.capitalize(),
+		"◆ Campaign Energy: %d / 100" % cm.energy,
+		"◆ Training: Choose a stat; each session costs 1 day and 15 energy",
+		"◆ Rest: Choose 1, 3, or 7 days to recover energy"
 	]
 	for n in med_notes:
 		var n_lbl = Label.new()
@@ -1273,17 +1403,14 @@ func _render_cultivation_overview():
 	grid_ratings.add_theme_constant_override("v_separation", 8)
 	cb_vb.add_child(grid_ratings)
 
-	var strike_bonus = int((cm.player_potency - 30) * 1.5)
-	var crit_bonus = int((cm.player_dexterity - 32) * 1.2)
-	var eva_bonus = int((cm.player_agility - 28) * 1.0)
 	var def_val = cm.player_defense if ("player_defense" in cm) else 20
-	var def_reduction = int(def_val * 0.5)
-	var p_hp = 90 + (cm.player_level - 1) * 10
+	var def_reduction = mini(int(def_val * 0.5), 65)
+	var p_hp = _player_max_hp()
 
 	var rating_cards = [
-		{"label": "Strike Potency", "val": "%d Potency (+%d%% Dmg)" % [cm.player_potency, strike_bonus], "sub": "Elemental ability scalar"},
-		{"label": "Kinetic Agility", "val": "%d Agility (+%d%% Eva)" % [cm.player_agility, eva_bonus], "sub": "Turn frequency & dodging"},
-		{"label": "Combat Dexterity", "val": "%d Dexterity (+%d%% Crit)" % [cm.player_dexterity, crit_bonus], "sub": "Critical precision"},
+		{"label": "Strike Potency", "val": "%d Potency" % cm.player_potency, "sub": "Elemental ability strength"},
+		{"label": "Kinetic Agility", "val": "%d Agility" % cm.player_agility, "sub": "Directional evasion"},
+		{"label": "Combat Dexterity", "val": "%d Dexterity" % cm.player_dexterity, "sub": "Attack accuracy"},
 		{"label": "Fortified Armor", "val": "%d DEF (-%d%% Dmg)" % [def_val, def_reduction], "sub": "Incoming damage reduction"},
 		{"label": "Tactical Mobility", "val": "%d Tiles / Turn" % cm.player_speed, "sub": "Arena grid range"},
 		{"label": "Vitality Reserves", "val": "%d HP  |  %d STA" % [p_hp, cm.player_stamina], "sub": "Physical endurance pool"},
@@ -1472,7 +1599,7 @@ func _render_cultivation_tree():
 		skill_tree_canvas.name = "SkillTreeCanvas"
 		skill_tree_canvas.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		skill_tree_canvas.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		skill_tree_canvas.custom_minimum_size = Vector2(0, 480)
+		skill_tree_canvas.custom_minimum_size = Vector2(0, 360)
 		lib_col.add_child(skill_tree_canvas)
 		skill_tree_canvas.skill_unlocked.connect(func(_sk):
 			_render_cultivation_top_bar()
@@ -1598,7 +1725,7 @@ func _unequip_skill(idx: int):
 #  TAB 3: LADDER & STANDINGS (2-COLUMN MASTER-DETAIL WITH SEARCH & ROSTER)
 # ══════════════════════════════════════════════════════════════════════════════
 
-var _ladder_league: String = "bronze"  # bronze, silver, gold, apex, world
+var _ladder_league: String = "city"
 var _ladder_mode: String = "teams"    # teams, players
 var _ladder_search: String = ""
 var _ladder_elem_filter: String = "all"
@@ -1705,6 +1832,71 @@ const LADDER_TEAMS_DATA = {
 	"world": []
 }
 
+func _active_league_key() -> String:
+	if not cm:
+		return "city"
+	var keys = ["city", "regional", "national"]
+	return keys[clampi(cm.league_tier, 1, keys.size()) - 1]
+
+func _live_player_roster() -> Array:
+	var roster: Array = []
+	var captain_found = false
+	for ally in cm.allies:
+		if not (ally is Dictionary) or ally.get("status", "Active") == "Retired":
+			continue
+		var ally_name = str(ally.get("name", ""))
+		if ally_name == "":
+			continue
+		var is_captain = ally_name.to_lower() == cm.player_name.to_lower()
+		captain_found = captain_found or is_captain
+		var skills = ally.get("equipped_skills", [])
+		var signature = str(skills[0]) if skills is Array and not skills.is_empty() else "Guard"
+		roster.append({
+			"name": ally_name,
+			"role": "Captain / Striker" if is_captain else str(ally.get("archetype", ally.get("role", "Fighter"))),
+			"level": int(ally.get("level", 1)),
+			"element": str(ally.get("element", cm.player_element)),
+			"skill": signature
+		})
+	if not captain_found:
+		roster.push_front({"name": cm.player_name, "role": "Captain / Striker", "level": int(cm.player_level),
+			"element": cm.player_element, "skill": str(cm.equipped_abilities[0]) if not cm.equipped_abilities.is_empty() else "Guard"})
+	return roster
+
+func _live_ladder_teams(static_teams: Array, summary: Dictionary) -> Array:
+	var live_teams: Array = []
+	var rows = _season_standings(summary)
+	for i in range(rows.size()):
+		var row = rows[i]
+		var team_name = str(row.get("team", "Club %d" % (i + 1)))
+		var template: Dictionary = {}
+		for old_team in static_teams:
+			if old_team is Dictionary and str(old_team.get("name", "")).to_lower() == team_name.to_lower():
+				template = old_team.duplicate(true)
+				break
+		if template.is_empty():
+			var fallback_element = ["fire", "water", "earth", "air"][i % 4]
+			template = {"name": team_name, "captain": "Unknown", "element": fallback_element,
+				"tier": _active_league_key().capitalize(), "playstyle": "Scouting in progress",
+				"strengths": ["Season opponent"], "weaknesses": ["Scout them in battle"], "roster": []}
+		if team_name.to_lower() == cm.team_name.to_lower():
+			template["captain"] = cm.player_name
+			template["element"] = cm.player_element
+			template["element_label"] = cm.player_element.capitalize()
+			template["roster"] = _live_player_roster()
+			template["playstyle"] = "Your club's current squad"
+		template["name"] = team_name
+		template["scouting_only"] = false
+		template["rank"] = i + 1
+		template["played"] = int(row.get("played", 0))
+		template["wins"] = int(row.get("wins", 0))
+		template["draws"] = int(row.get("draws", 0))
+		template["losses"] = int(row.get("losses", 0))
+		template["score_difference"] = int(row.get("score_difference", 0))
+		template["points"] = int(row.get("points", 0))
+		live_teams.append(template)
+	return live_teams
+
 func _refresh_intel_tab():
 	var tab_scroll = $MainTabs/TabIntel
 	if tab_scroll is ScrollContainer:
@@ -1717,30 +1909,29 @@ func _refresh_intel_tab():
 	var cinzel = load("res://assets/fonts/Cinzel-Bold.ttf")
 
 	# 1. Top League Selector Bar
+	var league_scroll = ScrollContainer.new()
+	league_scroll.custom_minimum_size = Vector2(0, 34)
+	league_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	root_vbox.add_child(league_scroll)
 	var league_hb = HBoxContainer.new()
 	league_hb.add_theme_constant_override("separation", 8)
-	root_vbox.add_child(league_hb)
+	league_scroll.add_child(league_hb)
 
-	var leagues = [
-		{"id": "bronze", "label": "Bronze Circuit (Active)"},
-		{"id": "silver", "label": "Silver Tournament"},
-		{"id": "gold", "label": "Gold Championship"},
-		{"id": "apex", "label": "Apex Showdown"},
-		{"id": "world", "label": "Global Ladder"}
-	]
+	var leagues = ScoutingCatalogScript.DIVISIONS
 
 	for l in leagues:
 		var btn = Button.new()
-		btn.text = l["label"]
+		btn.text = l["label"] + (" • Active" if cm and cm.has_team and _active_league_key() == l["id"] else "")
 		if cinzel_font:
 			btn.add_theme_font_override("font", cinzel_font)
-		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		btn.custom_minimum_size = Vector2(100, 30)
 		if _ladder_league == l["id"]:
 			_style_tactical_button(btn, Color(0.12, 0.16, 0.24, 0.98), UITheme.GOLD_PRIMARY, Color(1.0, 0.95, 0.75, 1.0), 10, true)
 		else:
 			_style_secondary_slate_button(btn, 10)
 		btn.pressed.connect(func():
 			_ladder_league = l["id"]
+			_ladder_elem_filter = "all"
 			_selected_ladder_team_idx = 0
 			_selected_ladder_player_idx = 0
 			_refresh_intel_tab()
@@ -1765,7 +1956,7 @@ func _refresh_intel_tab():
 	left_col.add_child(mode_hb)
 
 	var btn_teams = Button.new()
-	btn_teams.text = "Teams Ladder"
+	btn_teams.text = "National Teams" if _ladder_league == "national_teams" else "Teams Ladder"
 	if cinzel_font:
 		btn_teams.add_theme_font_override("font", cinzel_font)
 	btn_teams.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -1815,7 +2006,7 @@ func _refresh_intel_tab():
 	)
 	search_hb.add_child(line_edit)
 
-	var elem_filters = ["all", "fire", "water", "earth", "air"]
+	var elem_filters = ["all"] if _ladder_league == "national_teams" else ["all", "fire", "water", "earth", "air"]
 	for ef in elem_filters:
 		var ef_btn = Button.new()
 		ef_btn.text = ef.capitalize()
@@ -1844,9 +2035,11 @@ func _refresh_intel_tab():
 	scroll_list.add_child(list_vb)
 
 	# Aggregate Data for Active League
-	var raw_teams = LADDER_TEAMS_DATA.get(_ladder_league, [])
-	if _ladder_league == "world":
-		raw_teams = LADDER_TEAMS_DATA["bronze"] + LADDER_TEAMS_DATA["silver"] + LADDER_TEAMS_DATA["gold"] + LADDER_TEAMS_DATA["apex"]
+	var raw_teams = ScoutingCatalogScript.teams_for(_ladder_league, cm)
+	var season_summary = _get_season_summary()
+	var showing_live_season = cm and cm.has_team and bool(season_summary.get("active", false)) and _ladder_league == _active_league_key()
+	if showing_live_season:
+		raw_teams = _live_ladder_teams(raw_teams, season_summary)
 
 	# RIGHT COLUMN: Detail Dossier (~580px)
 	var right_col = PanelContainer.new()
@@ -1878,7 +2071,7 @@ func _refresh_intel_tab():
 		for t in raw_teams:
 			if _ladder_search != "" and not _ladder_search in t["name"].to_lower() and not _ladder_search in t["captain"].to_lower():
 				continue
-			if _ladder_elem_filter != "all" and t["element"].to_lower() != _ladder_elem_filter:
+			if _ladder_league != "national_teams" and _ladder_elem_filter != "all" and t["element"].to_lower() != _ladder_elem_filter:
 				continue
 			matching_teams.append(t)
 
@@ -1918,9 +2111,10 @@ func _refresh_intel_tab():
 
 			# Rank badge
 			var rank_lbl = Label.new()
-			rank_lbl.text = "#%d" % team["rank"]
+			var team_unranked = bool(team.get("scouting_only", false)) or (showing_live_season and int(team.get("played", 0)) == 0)
+			rank_lbl.text = "—" if team_unranked else "#%d" % team["rank"]
 			rank_lbl.add_theme_font_size_override("font_size", 14)
-			var rank_color = UITheme.GOLD_PRIMARY if team["rank"] == 1 else (Color(0.8, 0.85, 0.95) if team["rank"] == 2 else (Color(0.8, 0.55, 0.35) if team["rank"] == 3 else Color(0.5, 0.55, 0.65)))
+			var rank_color = Color(0.55, 0.62, 0.72) if team_unranked else (UITheme.GOLD_PRIMARY if team["rank"] == 1 else (Color(0.8, 0.85, 0.95) if team["rank"] == 2 else (Color(0.8, 0.55, 0.35) if team["rank"] == 3 else Color(0.5, 0.55, 0.65))))
 			rank_lbl.modulate = rank_color
 			rank_lbl.custom_minimum_size = Vector2(30, 0)
 			row_hb.add_child(rank_lbl)
@@ -1938,16 +2132,7 @@ func _refresh_intel_tab():
 			av_sb.border_color = _get_element_color(team["element"])
 			av_p.add_theme_stylebox_override("panel", av_sb)
 
-			var spr = Sprite2D.new()
-			var sp_path = "res://assets/%s_walk.png" % team["element"].to_lower()
-			if ResourceLoader.exists(sp_path):
-				spr.texture = load(sp_path)
-				spr.hframes = 4
-				spr.vframes = 4
-				spr.frame = 0
-				spr.position = Vector2(19, 19)
-				spr.scale = Vector2(0.6, 0.6)
-			av_p.add_child(spr)
+			av_p.add_child(_make_portrait(team["element"]))
 			row_hb.add_child(av_p)
 
 			# Team Info
@@ -1964,7 +2149,7 @@ func _refresh_intel_tab():
 			info_vb.add_child(t_name)
 
 			var t_sub = Label.new()
-			t_sub.text = "Captain: %s • %s" % [team["captain"].capitalize(), team["element"].capitalize()]
+			t_sub.text = "Captain: %s • %s" % [team["captain"].capitalize(), team.get("element_label", team["element"].capitalize())]
 			t_sub.add_theme_font_size_override("font_size", 8)
 			t_sub.modulate = _get_element_color(team["element"])
 			info_vb.add_child(t_sub)
@@ -1976,14 +2161,14 @@ func _refresh_intel_tab():
 			row_hb.add_child(rec_vb)
 
 			var r_lbl = Label.new()
-			r_lbl.text = "%dW - %dL" % [team["wins"], team["losses"]]
+			r_lbl.text = "UNSCOUTED" if team.get("scouting_only", false) else "%dW %dD %dL" % [team["wins"], team.get("draws", 0), team["losses"]]
 			r_lbl.add_theme_font_size_override("font_size", 9)
 			r_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 			r_lbl.modulate = Color(0.40, 0.90, 0.55)
 			rec_vb.add_child(r_lbl)
 
 			var pt_lbl = Label.new()
-			pt_lbl.text = "%d PTS" % team["points"]
+			pt_lbl.text = "—" if team.get("scouting_only", false) else "%d PTS" % team["points"]
 			pt_lbl.add_theme_font_size_override("font_size", 9)
 			pt_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 			pt_lbl.modulate = UITheme.GOLD_PRIMARY
@@ -2026,17 +2211,23 @@ func _refresh_intel_tab():
 		status_card.add_child(sc_vb)
 
 		var sc_hdr = Label.new()
-		sc_hdr.text = "Circuit Directive & Season Standings"
+		sc_hdr.text = "Live Club Standings" if showing_live_season else ("National Team Directory" if _ladder_league == "national_teams" else "Division Scouting Preview")
 		sc_hdr.add_theme_font_size_override("font_size", 10)
 		sc_hdr.modulate = UITheme.GOLD_PRIMARY
 		sc_vb.add_child(sc_hdr)
 
-		var sc_lines = [
-			"Division: Bronze Street Circuit (Stage 1 Active)",
-			"Promotion: Top 2 teams advance to Silver Championship",
-			"Prize Pool: 150,000 Gold • Regional Sigil",
-			"Scout Standing: High Recognition (Top Priority)"
-		]
+		var sc_lines: Array = []
+		if showing_live_season:
+			var player_standing = _player_standing(season_summary)
+			var player_rank = "#%d of %d" % [player_standing.get("rank", 0), player_standing.get("team_count", 0)] if int(player_standing.get("played", 0)) > 0 else "Unranked"
+			sc_lines = [
+				"Season %d • Month %d/8 • Week %d/32" % [season_summary.get("season_number", 1), season_summary.get("month", 1), season_summary.get("week", 1)],
+				"Your club: %s • %d points" % [player_rank, player_standing.get("points", 0)],
+				"Standings update after each club fixture",
+				"Championship and promotion follow the regular season"
+			]
+		else:
+			sc_lines = ["Call-ups and records are not yet available"] if _ladder_league == "national_teams" else ["Scouting records for this division", "Live standings appear in your active club league"]
 		for sl in sc_lines:
 			var s_lbl = Label.new()
 			s_lbl.text = "◆  %s" % sl
@@ -2080,9 +2271,10 @@ func _refresh_intel_tab():
 			d_top_hb.add_child(tp)
 
 			var d_stats = Label.new()
-			d_stats.text = "Captain: %s (%s)  |  Record: %dW - %dL  |  Standing: #%d (%d PTS)" % [
+			var standing_label = "Unranked" if showing_live_season and int(sel_team.get("played", 0)) == 0 else "#%d (%d PTS)" % [sel_team["rank"], sel_team["points"]]
+			d_stats.text = "Captain: %s (%s)  |  Scouting profile; no official result yet" % [sel_team["captain"], sel_team.get("element_label", sel_team["element"].capitalize())] if sel_team.get("scouting_only", false) else "Captain: %s (%s)  |  %dW %dD %dL  |  %s" % [
 				sel_team["captain"].capitalize(), sel_team["element"].capitalize(),
-				sel_team["wins"], sel_team["losses"], sel_team["rank"], sel_team["points"]
+				sel_team["wins"], sel_team.get("draws", 0), sel_team["losses"], standing_label
 			]
 			d_stats.add_theme_font_size_override("font_size", 10)
 			d_stats.modulate = Color(0.4, 0.85, 1.0)
@@ -2185,25 +2377,33 @@ func _refresh_intel_tab():
 				cc_vb.add_child(cc_hdr)
 
 				var cc_desc = Label.new()
-				cc_desc.text = "Advice: Exploit element weaknesses during deployment. Position heavy anchors against their captain to absorb rushdown."
+				cc_desc.text = "National selection and international fixtures are not yet playable." if _ladder_league == "national_teams" else "Advice: Exploit element weaknesses during deployment. Position heavy anchors against their captain to absorb rushdown."
 				cc_desc.add_theme_font_size_override("font_size", 8)
 				cc_desc.modulate = Color(0.80, 0.88, 0.95)
 				cc_vb.add_child(cc_desc)
 
 				var scrim_btn = Button.new()
-				scrim_btn.text = "Target in Deployment Workbench"
+				var scheduled_match = cm.get_next_scheduled_match()
+				var is_next_opponent = str(scheduled_match.get("enemy_team", "")).to_lower() == str(sel_team["name"]).to_lower()
+				scrim_btn.text = "National fixtures coming later" if _ladder_league == "national_teams" else ("Prepare for Scheduled Match" if is_next_opponent else "No Scheduled Match vs This Club")
 				scrim_btn.custom_minimum_size = Vector2(0, 32)
+				scrim_btn.disabled = not is_next_opponent or (scheduled_match.has("season_day") and not cm.can_play_next_match())
 				_style_secondary_slate_button(scrim_btn, 10)
 				scrim_btn.pressed.connect(func():
-					cm.prepare_match("tournament", sel_team["element"], sel_team["captain"], sel_team["name"])
+					_pending_deployment_match.clear()
+					cm.prepare_match(str(scheduled_match.get("match_type", "tournament")),
+						str(scheduled_match.get("enemy_element", "water")),
+						str(scheduled_match.get("enemy_captain", "Opponent")),
+						str(scheduled_match.get("enemy_team", "Rival Club")))
 					_switch_tab(2)
 				)
 				cc_vb.add_child(scrim_btn)
 
 				# Prominent Full Athlete Roster Toggle Button
 				var btn_toggle_roster = Button.new()
-				btn_toggle_roster.text = "View Full Roster & Athlete Intel (%d Combatants) →" % sel_team["roster"].size()
+				btn_toggle_roster.text = "Roster not yet scouted" if sel_team["roster"].is_empty() else "View Full Roster & Athlete Intel (%d Combatants) →" % sel_team["roster"].size()
 				btn_toggle_roster.custom_minimum_size = Vector2(0, 36)
+				btn_toggle_roster.disabled = sel_team["roster"].is_empty()
 				_style_tactical_button(btn_toggle_roster, Color(0.10, 0.14, 0.22, 0.95), UITheme.GOLD_PRIMARY, Color(1.0, 0.92, 0.75), 10, true)
 				btn_toggle_roster.pressed.connect(func():
 					_intel_view_roster = true
@@ -2275,16 +2475,7 @@ func _refresh_intel_tab():
 					m_av_sb.border_color = _get_element_color(member["element"])
 					m_av.add_theme_stylebox_override("panel", m_av_sb)
 
-					var m_spr = Sprite2D.new()
-					var m_sp_path = "res://assets/%s_walk.png" % member["element"].to_lower()
-					if ResourceLoader.exists(m_sp_path):
-						m_spr.texture = load(m_sp_path)
-						m_spr.hframes = 4
-						m_spr.vframes = 4
-						m_spr.frame = 0
-						m_spr.position = Vector2(20, 20)
-						m_spr.scale = Vector2(0.6, 0.6)
-					m_av.add_child(m_spr)
+					m_av.add_child(_make_portrait(member["element"]))
 					m_hb.add_child(m_av)
 
 					var m_info_vb = VBoxContainer.new()
@@ -2396,16 +2587,7 @@ func _refresh_intel_tab():
 			av_sb.border_color = _get_element_color(p["element"])
 			av_p.add_theme_stylebox_override("panel", av_sb)
 
-			var spr = Sprite2D.new()
-			var sp_path = "res://assets/%s_walk.png" % p["element"].to_lower()
-			if ResourceLoader.exists(sp_path):
-				spr.texture = load(sp_path)
-				spr.hframes = 4
-				spr.vframes = 4
-				spr.frame = 0
-				spr.position = Vector2(18, 18)
-				spr.scale = Vector2(0.55, 0.55)
-			av_p.add_child(spr)
+			av_p.add_child(_make_portrait(p["element"]))
 			row_hb.add_child(av_p)
 
 			var info_vb = VBoxContainer.new()
@@ -2490,7 +2672,7 @@ func _refresh_battle_tab():
 		tab_scroll.scroll_horizontal = 0
 		tab_scroll.scroll_vertical = 0
 		tab_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-		tab_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		tab_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 	var tab_b = $MainTabs/TabBattle/VB
 	for c in tab_b.get_children():
 		tab_b.remove_child(c)
@@ -2522,9 +2704,8 @@ func _refresh_battle_tab():
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	hb_top.add_child(spacer)
 
-	var next_m = cm.get_next_scheduled_match()
-	if next_m.is_empty():
-		next_m = {"enemy_captain": "Nami", "enemy_element": "water", "enemy_team": "Hydro Vipers"}
+	var next_m = _get_deployment_match()
+	var has_scheduled_match = not next_m.is_empty()
 
 	var target_panel = PanelContainer.new()
 	var target_sb = StyleBoxFlat.new()
@@ -2548,10 +2729,10 @@ func _refresh_battle_tab():
 
 	var target_tag = Label.new()
 	target_tag.text = "Scheduled Rival: %s (%s) • %s" % [
-		next_m.get("enemy_captain", "Nami").capitalize(),
+		next_m.get("enemy_captain", "Opponent").capitalize(),
 		next_m.get("enemy_element", "water").capitalize(),
-		next_m.get("enemy_team", "Hydro Vipers")
-	]
+		next_m.get("enemy_team", "Rival Club")
+	] if has_scheduled_match else "No match scheduled • Return to the club calendar"
 	target_tag.add_theme_font_size_override("font_size", 10)
 	target_tag.modulate = Color(0.4, 0.85, 1.0)
 	target_hb.add_child(target_tag)
@@ -2914,16 +3095,7 @@ func _refresh_battle_tab():
 		av_sb.border_color = Color(0.25, 0.35, 0.50, 0.5)
 		av_p.add_theme_stylebox_override("panel", av_sb)
 
-		var spr = Sprite2D.new()
-		var sp_path = "res://assets/%s_walk.png" % a_elem.to_lower()
-		if ResourceLoader.exists(sp_path):
-			spr.texture = load(sp_path)
-			spr.hframes = 4
-			spr.vframes = 4
-			spr.frame = 0
-			spr.position = Vector2(15, 15)
-			spr.scale = Vector2(0.50, 0.50)
-		av_p.add_child(spr)
+		av_p.add_child(_make_portrait(a_elem))
 		top_row.add_child(av_p)
 
 		# Info column
@@ -3109,30 +3281,28 @@ func _refresh_battle_tab():
 
 		if slot_i < eq_skills.size():
 			var sk_name = eq_skills[slot_i]
-			var cur_var = cm.skill_variations.get(sk_name, "Base")
+			var forms = edata.get_skill_forms(sk_name) if edata else {}
+			var unlocked_forms = cm.get_unlocked_forms_for_skill(sk_name)
+			var cur_var = cm.skill_variations.get(sk_name, "")
+			if not forms.has(cur_var) and not forms.is_empty():
+				cur_var = forms.keys()[0]
 			var lbl_sk = Label.new()
-			lbl_sk.text = "%d. %s" % [slot_i + 1, sk_name]
+			lbl_sk.text = "%d. %s" % [slot_i + 1, sk_name.replace("_", " ")]
 			lbl_sk.add_theme_font_size_override("font_size", 9)
 			lbl_sk.modulate = Color(1.0, 0.92, 0.65)
 			s_vb.add_child(lbl_sk)
 
 			var btn_var = Button.new()
-			btn_var.text = cur_var if cur_var != "Base" else "Form"
+			btn_var.name = "Form_" + sk_name
+			btn_var.text = forms.get(cur_var, {}).get("name", "Form")
+			btn_var.disabled = unlocked_forms.size() < 2
+			btn_var.tooltip_text = "Cycle unlocked forms. Unlock additional forms in Cultivation."
 			_style_secondary_slate_button(btn_var, 8)
 			btn_var.custom_minimum_size = Vector2(0, 18)
 			btn_var.pressed.connect(func():
-				if SKILL_VARIATIONS.has(sk_name):
-					var vars = SKILL_VARIATIONS[sk_name]
-					var cur_idx = -1
-					for vi in range(vars.size()):
-						if vars[vi]["name"] == cur_var:
-							cur_idx = vi
-							break
-					var next_idx = (cur_idx + 1) % (vars.size() + 1)
-					if next_idx == vars.size():
-						cm.skill_variations[sk_name] = "Base"
-					else:
-						cm.skill_variations[sk_name] = vars[next_idx]["name"]
+				if unlocked_forms.size() > 1:
+					var next_idx = (unlocked_forms.find(cur_var) + 1) % unlocked_forms.size()
+					cm.set_active_skill_form(sk_name, unlocked_forms[next_idx])
 					_refresh_battle_tab()
 			)
 			s_vb.add_child(btn_var)
@@ -3218,18 +3388,14 @@ func _refresh_battle_tab():
 	var btn_direct_deploy = Button.new()
 	btn_direct_deploy.text = "Confirm Strategy & Start Match"
 	btn_direct_deploy.custom_minimum_size = Vector2(0, 38)
+	btn_direct_deploy.disabled = not has_scheduled_match or (cm.get_next_scheduled_match().has("season_day") and not cm.can_play_next_match() and _pending_deployment_match.is_empty())
 	_style_primary_gold_button(btn_direct_deploy, 12)
 	btn_direct_deploy.pressed.connect(func():
 		var cap_pos = cm.starting_formation.get(cm.player_name, Vector2i(-1, -1))
 		if not cap_pos is Vector2i or cap_pos == Vector2i(-1, -1):
 			cm.starting_formation[cm.player_name] = Vector2i(3, 4)
 
-		var m_type = "tournament"
-		var e_elem = next_m.get("enemy_element", "water")
-		var e_cap = next_m.get("enemy_captain", "Nami")
-		var e_team = next_m.get("enemy_team", "Hydro Vipers")
-		cm.prepare_match(m_type, e_elem, e_cap, e_team)
-		get_tree().change_scene_to_file("res://scenes/World.tscn")
+		_on_launch_battle_arena_direct()
 	)
 	right_col.add_child(btn_direct_deploy)
 
@@ -3297,7 +3463,7 @@ func _refresh_team_tab():
 		cap["name"] = cm.player_name
 		cap["element"] = cm.player_element
 		cap["level"] = cm.player_level
-		cap["hp"] = 90 + (cm.player_level - 1) * 10
+		cap["hp"] = _player_max_hp()
 		cap["mana"] = cm.player_mana
 		cap["stamina"] = cm.player_stamina
 		cap["speed"] = cm.player_speed
@@ -3402,16 +3568,7 @@ func _refresh_team_tab():
 		av_sb.border_color = Color(0.20, 0.28, 0.40, 0.5)
 		av_p.add_theme_stylebox_override("panel", av_sb)
 
-		var spr = Sprite2D.new()
-		var sp_path = "res://assets/%s_walk.png" % a_elem.to_lower()
-		if ResourceLoader.exists(sp_path):
-			spr.texture = load(sp_path)
-			spr.hframes = 4
-			spr.vframes = 4
-			spr.frame = 0
-			spr.position = Vector2(24, 24)
-			spr.scale = Vector2(0.75, 0.75)
-		av_p.add_child(spr)
+		av_p.add_child(_make_portrait(a_elem))
 		row_hb.add_child(av_p)
 
 		# Info VBox
@@ -3509,7 +3666,7 @@ func _refresh_team_tab():
 	dj_vb.add_child(dj_title)
 
 	var dj_details = [
-		"Division: %s" % (cm.current_league if cm else "Bronze Street Circuit"),
+		"Division: %s" % (cm.current_league if cm else "Street Circuit"),
 		"Active Lineup: %d %s" % [active_roster.size(), "Combatant (Solo Fighter)" if active_roster.size() == 1 else "Combatants"],
 		"Dojo Facility: Standard Training Mat",
 		"Tactical Morale: High (+0% bonus)"
@@ -3575,16 +3732,7 @@ func _refresh_team_tab():
 	ped_sb.border_color = _get_element_color(sel_elem)
 	ped_p.add_theme_stylebox_override("panel", ped_sb)
 
-	var ped_spr = Sprite2D.new()
-	var ped_path = "res://assets/%s_walk.png" % sel_elem.to_lower()
-	if ResourceLoader.exists(ped_path):
-		ped_spr.texture = load(ped_path)
-		ped_spr.hframes = 4
-		ped_spr.vframes = 4
-		ped_spr.frame = 0
-		ped_spr.position = Vector2(36, 36)
-		ped_spr.scale = Vector2(1.10, 1.10)
-	ped_p.add_child(ped_spr)
+	ped_p.add_child(_make_portrait(sel_elem))
 	head_hb.add_child(ped_p)
 
 	var head_info_vb = VBoxContainer.new()
@@ -3848,7 +3996,7 @@ func _refresh_team_tab():
 			r_vb.add_child(act_hb)
 
 			var b_train = Button.new()
-			b_train.text = "Dojo Sparring (+40 XP | -20 ENG)"
+			b_train.text = "Train Stat (1 Day | -15 ENG)"
 			b_train.custom_minimum_size = Vector2(0, 36)
 			b_train.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			_style_secondary_slate_button(b_train, 10)
@@ -3856,7 +4004,7 @@ func _refresh_team_tab():
 			act_hb.add_child(b_train)
 
 			var b_street = Button.new()
-			b_street.text = "Street Scrimmage (-30 ENG)"
+			b_street.text = "Street Scrimmage (-20 ENG)"
 			b_street.custom_minimum_size = Vector2(0, 36)
 			b_street.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			_style_secondary_slate_button(b_street, 10)
@@ -3864,7 +4012,7 @@ func _refresh_team_tab():
 			act_hb.add_child(b_street)
 
 			var b_rest = Button.new()
-			b_rest.text = "Rest Day (+50 ENG)"
+			b_rest.text = "Choose Rest Duration"
 			b_rest.custom_minimum_size = Vector2(0, 36)
 			b_rest.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			_style_secondary_slate_button(b_rest, 10)
@@ -3940,52 +4088,337 @@ func _on_dev_unlock_pressed():
 		cm.dev_unlock_all()
 		_refresh_all()
 
+func _choose_next_element(element_key: String, popup: PopupPanel) -> void:
+	if cm and cm.unlock_next_element(element_key):
+		popup.hide()
+		popup.queue_free()
+		_refresh_all()
+
+func _show_element_choice_popup() -> void:
+	if not cm or not cm.pending_element_choice:
+		return
+	var existing = get_node_or_null("ElementChoicePopup")
+	if existing:
+		existing.popup_centered(Vector2i(440, 270))
+		return
+	var popup = PopupPanel.new()
+	popup.name = "ElementChoicePopup"
+	var panel := StyleBoxFlat.new()
+	panel.bg_color = Color(0.04, 0.05, 0.09, 0.98)
+	panel.border_color = Color(0.82, 0.65, 0.24, 0.85)
+	panel.set_border_width_all(2)
+	panel.set_corner_radius_all(8)
+	panel.content_margin_left = 16
+	panel.content_margin_top = 16
+	panel.content_margin_right = 16
+	panel.content_margin_bottom = 16
+	popup.add_theme_stylebox_override("panel", panel)
+	add_child(popup)
+	var margin = MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 20)
+	margin.add_theme_constant_override("margin_top", 16)
+	margin.add_theme_constant_override("margin_right", 20)
+	margin.add_theme_constant_override("margin_bottom", 16)
+	popup.add_child(margin)
+	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var content = VBoxContainer.new()
+	content.add_theme_constant_override("separation", 8)
+	margin.add_child(content)
+	var heading = Label.new()
+	heading.text = "Choose Your Next Element"
+	heading.add_theme_font_size_override("font_size", 17)
+	heading.add_theme_color_override("font_color", UITheme.GOLD_PRIMARY)
+	if cinzel_font:
+		heading.add_theme_font_override("font", cinzel_font)
+	content.add_child(heading)
+	var explanation = Label.new()
+	explanation.text = "This unlocks a new discipline. Spend SP in the skill tree to learn its techniques."
+	explanation.add_theme_font_size_override("font_size", 10)
+	explanation.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	content.add_child(explanation)
+	for element_key in ["fire", "water", "earth", "air"]:
+		if cm.get_unlocked_elements().has(element_key):
+			continue
+		var choice = Button.new()
+		choice.text = element_key.capitalize()
+		choice.custom_minimum_size = Vector2(0, 34)
+		_style_secondary_slate_button(choice, 11)
+		choice.pressed.connect(_choose_next_element.bind(element_key, popup))
+		content.add_child(choice)
+	popup.popup_centered(Vector2i(440, 270))
+
+func _show_primordial_choice_popup() -> void:
+	if not cm or not cm.primordial_choice_pending:
+		return
+	var popup := PopupPanel.new()
+	popup.name = "PrimordialChoicePopup"
+	var panel := StyleBoxFlat.new()
+	panel.bg_color = Color(0.04, 0.05, 0.09, 0.98)
+	panel.border_color = Color(0.82, 0.65, 0.24, 0.85)
+	panel.set_border_width_all(2)
+	panel.set_corner_radius_all(8)
+	panel.content_margin_left = 16
+	panel.content_margin_top = 16
+	panel.content_margin_right = 16
+	panel.content_margin_bottom = 16
+	popup.add_theme_stylebox_override("panel", panel)
+	add_child(popup)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 8)
+	popup.add_child(box)
+	var heading := Label.new()
+	heading.text = "National Cup Reward • Choose Space or Time"
+	if cinzel_font:
+		heading.add_theme_font_override("font", cinzel_font)
+	heading.add_theme_font_size_override("font_size", 14)
+	heading.add_theme_color_override("font_color", UITheme.GOLD_PRIMARY)
+	box.add_child(heading)
+	var explanation := Label.new()
+	explanation.text = "The discipline opens now. Win a national-team World Cup, then a Club World Cup to earn one skill permit. Every technique still costs SP."
+	explanation.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(explanation)
+	for element in ["space", "time"]:
+		if cm.primordial_choices.has(element):
+			continue
+		var choice := Button.new()
+		choice.text = element.capitalize()
+		choice.custom_minimum_size = Vector2(0, 32)
+		_style_secondary_slate_button(choice, 11)
+		choice.pressed.connect(func():
+			if cm.choose_primordial_element(element):
+				popup.queue_free()
+				_refresh_all()
+		)
+		box.add_child(choice)
+	popup.popup_centered(Vector2i(460, 220))
+
+func _show_world_cup_reward_popup() -> void:
+	if not cm or not cm.world_cup_reward_pending:
+		return
+	var popup := PopupPanel.new()
+	popup.name = "WorldCupRewardPopup"
+	var panel := StyleBoxFlat.new()
+	panel.bg_color = Color(0.04, 0.05, 0.09, 0.98)
+	panel.border_color = Color(0.82, 0.65, 0.24, 0.85)
+	panel.set_border_width_all(2)
+	panel.set_corner_radius_all(8)
+	panel.content_margin_left = 16
+	panel.content_margin_top = 16
+	panel.content_margin_right = 16
+	panel.content_margin_bottom = 16
+	popup.add_theme_stylebox_override("panel", panel)
+	add_child(popup)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 8)
+	popup.add_child(box)
+	var heading := Label.new()
+	heading.text = "World Cup Reward"
+	if cinzel_font:
+		heading.add_theme_font_override("font", cinzel_font)
+	heading.add_theme_font_size_override("font_size", 14)
+	heading.add_theme_color_override("font_color", UITheme.GOLD_PRIMARY)
+	box.add_child(heading)
+	for choice in ["space", "time", "skill"]:
+		if cm.primordial_choices.has(choice) or (choice != "skill" and cm.primordial_choices.is_empty()):
+			continue
+		var option := Button.new()
+		option.text = "One more primordial skill permit" if choice == "skill" else "Unlock %s" % choice.capitalize()
+		option.custom_minimum_size = Vector2(0, 32)
+		_style_secondary_slate_button(option, 11)
+		option.pressed.connect(func():
+			if cm.choose_world_cup_reward(choice):
+				popup.queue_free()
+				_refresh_all()
+		)
+		box.add_child(option)
+	popup.popup_centered(Vector2i(380, 180))
+
 func _on_enter_tournament_match():
+	if cm and cm.pending_element_choice:
+		_show_element_choice_popup()
+		return
+	if cm and cm.primordial_choice_pending:
+		_show_primordial_choice_popup()
+		return
+	if cm and cm.world_cup_reward_pending:
+		_show_world_cup_reward_popup()
+		return
+	if cm and cm.recruitment_offer_pending:
+		if cm.accept_recruitment_offer():
+			_pending_deployment_match.clear()
+			_refresh_all()
+		return
+	var season_summary = _get_season_summary()
+	if cm and str(season_summary.get("phase", "")) == "offseason":
+		if cm.advance_to_next_season():
+			_pending_deployment_match.clear()
+			_refresh_all()
+		return
+	_pending_deployment_match.clear()
 	var next_m = cm.get_next_scheduled_match()
 	if next_m.is_empty(): return
-	var m_type = "street" if (cm and not cm.has_team) else "tournament"
+	if next_m.has("season_day") and not cm.can_play_next_match():
+		_open_calendar()
+		return
+	var m_type = str(next_m.get("match_type", "street" if (cm and not cm.has_team) else "tournament"))
 	cm.prepare_match(m_type, next_m.get("enemy_element", "water"), next_m.get("enemy_captain", "Nami"), next_m.get("enemy_team", "Hydro Vipers"))
 	# Switch directly to battle deployment tab so player can adjust grid and deploy without popups!
 	_switch_tab(2)
 
+func _get_deployment_match() -> Dictionary:
+	if not _pending_deployment_match.is_empty():
+		return _pending_deployment_match.duplicate()
+	var match_data = cm.get_next_scheduled_match().duplicate()
+	if not match_data.has("match_type"):
+		match_data["match_type"] = "tournament" if cm.has_team else "street"
+	return match_data
+
+func _prepare_deployment_match() -> void:
+	var match_data = _get_deployment_match()
+	cm.prepare_match(match_data.get("match_type", "street"), match_data.get("enemy_element", "water"),
+		match_data.get("enemy_captain", "Street Brawler"), match_data.get("enemy_team", "Underground Syndicate"))
+
 func _on_launch_battle_arena_direct():
-	var next_m = cm.get_next_scheduled_match()
-	var e_elem = next_m.get("enemy_element", "water") if not next_m.is_empty() else "water"
-	var e_cap = next_m.get("enemy_captain", "Nami") if not next_m.is_empty() else "Nami"
-	var e_team = next_m.get("enemy_team", "Hydro Vipers") if not next_m.is_empty() else "Hydro Vipers"
-	var m_type = "street" if (cm and not cm.has_team) else "tournament"
-	cm.prepare_match(m_type, e_elem, e_cap, e_team)
+	if _get_deployment_match().is_empty():
+		return
+	if _pending_deployment_match.is_empty() and cm.get_next_scheduled_match().has("season_day") and not cm.can_play_next_match():
+		_open_calendar()
+		return
+	_prepare_deployment_match()
 	get_tree().change_scene_to_file("res://scenes/World.tscn")
 
 func _on_activity_train():
-	if cm.energy < 20:
-		if lbl_act_log:
-			lbl_act_log.text = "Not enough energy to train! Take a Rest Day or use a Stamina Draught."
-			lbl_act_log.modulate = Color(1, 0.4, 0.4)
-		return
-	cm.consume_energy(20)
-	cm.player_xp += 40
-	cm._check_level_up()
-	if lbl_act_log:
-		lbl_act_log.text = "Training Sparring Completed! +40 XP gained. (-20 Energy)"
-		lbl_act_log.modulate = Color(0.5, 1, 0.5)
-	_refresh_all()
+	var popup := PopupPanel.new()
+	popup.name = "TrainingFocusPopup"
+	var panel := StyleBoxFlat.new()
+	panel.bg_color = Color(0.04, 0.05, 0.09, 0.98)
+	panel.border_color = Color(0.82, 0.65, 0.24, 0.85)
+	panel.set_border_width_all(2)
+	panel.set_corner_radius_all(8)
+	panel.content_margin_left = 16
+	panel.content_margin_top = 16
+	panel.content_margin_right = 16
+	panel.content_margin_bottom = 16
+	popup.add_theme_stylebox_override("panel", panel)
+	add_child(popup)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 8)
+	popup.add_child(box)
+	var heading := Label.new()
+	heading.text = "Choose a stat to train • 1 day / 15 energy"
+	if cinzel_font:
+		heading.add_theme_font_override("font", cinzel_font)
+	heading.add_theme_font_size_override("font_size", 13)
+	heading.add_theme_color_override("font_color", UITheme.GOLD_PRIMARY)
+	box.add_child(heading)
+	for stat in cm.TRAINING_STATS:
+		var gains = int(cm.training_gains.get(stat, 0))
+		var threshold = 4 + mini(8, gains * 2)
+		var progress = int(cm.training_progress.get(stat, 0))
+		var choice := Button.new()
+		var at_cap = int(cm.get("player_%s" % stat)) >= int(cm.TRAINING_CAPS[stat])
+		choice.text = "%s • Training cap reached" % stat.capitalize() if at_cap else "%s • %d/%d sessions to +1" % [stat.capitalize(), progress, threshold]
+		choice.disabled = at_cap
+		choice.custom_minimum_size = Vector2(0, 32)
+		_style_secondary_slate_button(choice, 11)
+		if at_cap:
+			choice.add_theme_color_override("font_color", UITheme.TEXT_MUTED)
+		choice.pressed.connect(func():
+			var result = cm.train_stat(stat)
+			_set_activity_result("%s +1!" % stat.capitalize() if result.get("improved", false) else "%s training • %d/%d sessions" % [stat.capitalize(), result.get("progress", progress), result.get("threshold", threshold)] if result.get("success", false) else result.get("reason", "Could not train."))
+			popup.queue_free()
+		)
+		box.add_child(choice)
+	var cancel_btn := Button.new()
+	cancel_btn.text = "Cancel"
+	cancel_btn.custom_minimum_size = Vector2(0, 28)
+	_style_secondary_slate_button(cancel_btn, 10)
+	cancel_btn.pressed.connect(func(): popup.queue_free())
+	box.add_child(cancel_btn)
+	popup.popup_centered(Vector2i(420, 395))
 
 func _on_activity_street():
-	if cm.energy < 30:
+	if cm.has_team and cm.get_days_until_next_match() == 0:
+		_set_activity_result("A club match is due today. Play or skip it before a street brawl.")
+		return
+	if cm.energy < 20:
 		if lbl_act_log:
 			lbl_act_log.text = "Too exhausted for street fighting! Rest first."
 			lbl_act_log.modulate = Color(1, 0.4, 0.4)
 		return
 	var random_elements = ["water", "earth", "air"]
 	var e_elem = random_elements.pick_random()
-	cm.consume_energy(30)
-	cm.prepare_match("street", e_elem, "Street Brawler", "Underground Syndicate")
+	# Opening deployment is reversible. Match results charge the energy once.
+	_pending_deployment_match = {"match_type": "street", "enemy_element": e_elem,
+		"enemy_captain": "Street Brawler", "enemy_team": "Underground Syndicate"}
+	_prepare_deployment_match()
 	_switch_tab(2)
 
 func _on_activity_rest():
-	cm.restore_energy(50)
+	var popup := PopupPanel.new()
+	popup.name = "RestDurationPopup"
+	var panel := StyleBoxFlat.new()
+	panel.bg_color = Color(0.04, 0.05, 0.09, 0.98)
+	panel.border_color = Color(0.82, 0.65, 0.24, 0.85)
+	panel.set_border_width_all(2)
+	panel.set_corner_radius_all(8)
+	panel.content_margin_left = 16
+	panel.content_margin_top = 16
+	panel.content_margin_right = 16
+	panel.content_margin_bottom = 16
+	popup.add_theme_stylebox_override("panel", panel)
+	add_child(popup)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 8)
+	popup.add_child(box)
+	var heading := Label.new()
+	heading.text = "Choose Rest Duration"
+	if cinzel_font:
+		heading.add_theme_font_override("font", cinzel_font)
+	heading.add_theme_font_size_override("font_size", 13)
+	heading.add_theme_color_override("font_color", UITheme.GOLD_PRIMARY)
+	box.add_child(heading)
+	for days in [1, 3, 7]:
+		var option := Button.new()
+		option.text = "%d day(s) • +%d energy" % [days, {1: 20, 3: 50, 7: 90}[days]]
+		option.custom_minimum_size = Vector2(0, 32)
+		_style_secondary_slate_button(option, 11)
+		option.pressed.connect(func():
+			var result = cm.rest_for_days(days)
+			_set_activity_result("Rested %d day(s) • Energy %d/100" % [days, cm.energy] if result.get("success", false) else result.get("reason", "Could not rest."))
+			popup.queue_free()
+		)
+		box.add_child(option)
+	var cancel_btn := Button.new()
+	cancel_btn.text = "Cancel"
+	cancel_btn.custom_minimum_size = Vector2(0, 28)
+	_style_secondary_slate_button(cancel_btn, 10)
+	cancel_btn.pressed.connect(func(): popup.queue_free())
+	box.add_child(cancel_btn)
+	popup.popup_centered(Vector2i(360, 230))
+
+func _set_activity_result(message: String) -> void:
 	if lbl_act_log:
-		lbl_act_log.text = "Rest Day taken. +50 Energy recovered. Fully refreshed!"
+		lbl_act_log.text = message
 		lbl_act_log.modulate = Color(0.6, 0.9, 1.0)
 	_refresh_all()
+
+func _open_calendar() -> void:
+	if not cm or not cm.has_team:
+		return
+	var popup = get_node_or_null("CareerCalendarPopup")
+	if popup == null:
+		popup = CareerCalendarPopupScript.new()
+		popup.name = "CareerCalendarPopup"
+		add_child(popup)
+		popup.state_changed.connect(_set_activity_result)
+		popup.play_requested.connect(_on_enter_tournament_match)
+		popup.friendly_requested.connect(_on_friendly_requested)
+	popup.open_for(cm)
+
+func _on_friendly_requested(match_data: Dictionary) -> void:
+	if cm.get_season_day() != int(match_data.get("season_day", -1)):
+		return
+	_pending_deployment_match = match_data.duplicate()
+	_prepare_deployment_match()
+	_switch_tab(2)

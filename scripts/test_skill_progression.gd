@@ -5,10 +5,10 @@
 # 2. Prerequisite enforcement (child cannot unlock before parent).
 # 3. SP check and deduction (rejected at 0 SP, exact cost deducted).
 # 4. Multiple prerequisites convergence (e.g. Destruction).
-# 5. Space progression branch independence.
-# 6. Time progression branch independence.
+# 5. Space/Time require a National Cup choice and trophy-earned skill permits.
+# 6. A fourth core element requires Continental Cup success.
 # 7. Core elements multi-branch independent progression.
-# 8. Combination discipline access gate (e.g. Steam locked until Fire + Water available).
+# 8. Combination discipline access gate (e.g. Steam locked until player owns Fire + Water).
 # 9. Combination internal tree independence once unlocked.
 # 10. Form variation switching and storage.
 # 11. Save/load persistence of unlocked abilities, SP, and affinities.
@@ -139,42 +139,73 @@ func _run():
 	cm.player_level = 30
 	cm.unspent_skill_points = 10
 
-	# Spatial_Shift is starter root (no prereqs)
-	check.call(cm.can_unlock_skill("Spatial_Shift").get("can_unlock", false), "T5.1 Space root Spatial_Shift can be unlocked without prerequisites")
+	# A high player level does not grant Air or Space by itself. Promotion opens
+	# the second owned-element slot; the athlete still chooses which element.
+	check.call(not cm.can_unlock_skill("Spatial_Shift").get("can_unlock", true),
+		"T5.1 Space root stays locked for a Fire-only athlete, even at level 30")
+	check.call(not cm.unlock_next_element("air"), "T5.2 City cannot unlock a second element")
+	cm.league_tier = 2
+	check.call(cm.unlock_next_element("air") and cm.get_unlocked_elements().has("air"),
+		"T5.3 Regional promotion lets the player choose Air as a second element")
+	check.call(not cm.can_unlock_skill("Spatial_Shift").get("can_unlock", true),
+		"T5.3a Air and level 30 cannot bypass the National Cup")
+	cm.record_national_cup_title()
+	check.call(cm.choose_primordial_element("space"), "T5.3b National Cup title offers a Space choice")
+	check.call(not cm.can_unlock_skill("Spatial_Shift").get("can_unlock", true),
+		"T5.3c The choice alone cannot grant a Space skill")
+	cm.record_national_world_cup_title()
+	for _i in range(4): cm.record_club_world_cup_title()
+	check.call(cm.can_unlock_skill("Spatial_Shift").get("can_unlock", false),
+		"T5.4 Space root opens after national World Cup and Club World Cup titles")
 	cm.unlock_skill_node("Spatial_Shift")
 
 	# Spatial_Compression and Spatial_Barrier both depend on Spatial_Shift
-	check.call(cm.can_unlock_skill("Spatial_Compression").get("can_unlock", false), "T5.2 Spatial_Compression available after Spatial_Shift")
-	check.call(cm.can_unlock_skill("Spatial_Barrier").get("can_unlock", false), "T5.3 Spatial_Barrier available after Spatial_Shift")
+	check.call(cm.can_unlock_skill("Spatial_Compression").get("can_unlock", false), "T5.5 Spatial_Compression available after Spatial_Shift")
+	check.call(cm.can_unlock_skill("Spatial_Barrier").get("can_unlock", false), "T5.6 Spatial_Barrier available after Spatial_Shift")
 	cm.unlock_skill_node("Spatial_Compression")
 	cm.unlock_skill_node("Spatial_Barrier")
 
 	# Pinnacle Space requires Spatial_Compression and Spatial_Barrier
-	check.call(cm.can_unlock_skill("Space").get("can_unlock", false), "T5.4 Pinnacle Space available after both Tier 2 space techniques unlocked")
+	check.call(cm.can_unlock_skill("Space").get("can_unlock", false), "T5.7 Pinnacle Space available after both Tier 2 space techniques unlocked")
 	cm.unlock_skill_node("Space")
-	check.call(cm.unlocked_abilities.has("Space"), "T5.5 Pinnacle Space successfully unlocked in player abilities")
+	check.call(cm.unlocked_abilities.has("Space"), "T5.8 Pinnacle Space successfully unlocked in player abilities")
 
 	# --- SUITE 6: TIME PROGRESSION BRANCH ---
 	print("\n--- SUITE 6: Time Primordial Progression Branch ---")
-	# Time_Dilation is starter root (no prereqs)
-	check.call(cm.can_unlock_skill("Time_Dilation").get("can_unlock", false), "T6.1 Time root Time_Dilation can be unlocked independently of Space")
+	# The fourth element comes from a Continental Cup. Time still requires its
+	# own National Cup choice and a separate Club World Cup skill permit.
+	check.call(not cm.can_unlock_skill("Time_Dilation").get("can_unlock", true),
+		"T6.1 Time root stays locked with only Fire and Air")
+	cm.league_tier = 3
+	check.call(cm.unlock_next_element("water"), "T6.2 National opens a third element choice")
+	check.call(not cm.unlock_next_element("earth"), "T6.2a National league alone cannot grant a fourth element")
+	cm.record_continental_cup_title()
+	check.call(cm.unlock_next_element("earth"), "T6.3 Continental Cup opens a fourth element choice")
+	check.call(not cm.can_unlock_skill("Time_Dilation").get("can_unlock", true),
+		"T6.4 Four elements alone cannot bypass a National Cup choice")
+	cm.record_national_world_cup_title()
+	check.call(cm.choose_world_cup_reward("time"), "T6.4a A second national World Cup permits the Time choice")
+	for _i in range(4): cm.record_club_world_cup_title()
+	check.call(cm.can_unlock_skill("Time_Dilation").get("can_unlock", false),
+		"T6.5 Time root opens with its trophy-earned skill permit")
 	cm.unlock_skill_node("Time_Dilation")
 
 	# Chrono_Acceleration and Temporal_Decay depend on Time_Dilation
-	check.call(cm.can_unlock_skill("Chrono_Acceleration").get("can_unlock", false), "T6.2 Chrono_Acceleration available after Time_Dilation")
-	check.call(cm.can_unlock_skill("Temporal_Decay").get("can_unlock", false), "T6.3 Temporal_Decay available after Time_Dilation")
+	check.call(cm.can_unlock_skill("Chrono_Acceleration").get("can_unlock", false), "T6.6 Chrono_Acceleration available after Time_Dilation")
+	check.call(cm.can_unlock_skill("Temporal_Decay").get("can_unlock", false), "T6.7 Temporal_Decay available after Time_Dilation")
 	cm.unlock_skill_node("Chrono_Acceleration")
 	cm.unlock_skill_node("Temporal_Decay")
 
 	# Pinnacle Chrono_Stasis requires Chrono_Acceleration and Temporal_Decay
-	check.call(cm.can_unlock_skill("Chrono_Stasis").get("can_unlock", false), "T6.4 Pinnacle Chrono_Stasis available after both Tier 2 time techniques unlocked")
+	check.call(cm.can_unlock_skill("Chrono_Stasis").get("can_unlock", false), "T6.8 Pinnacle Chrono_Stasis available after both Tier 2 time techniques unlocked")
 	cm.unlock_skill_node("Chrono_Stasis")
-	check.call(cm.unlocked_abilities.has("Chrono_Stasis"), "T6.5 Pinnacle Chrono_Stasis successfully unlocked in player abilities")
+	check.call(cm.unlocked_abilities.has("Chrono_Stasis"), "T6.9 Pinnacle Chrono_Stasis successfully unlocked in player abilities")
 
 	# --- SUITE 7: COMBINATION DISCIPLINE ACCESS GATING ---
 	print("\n--- SUITE 7: Combination Discipline Access Gating ---")
 	cm.init_new_campaign({"player_name": "Ignis", "player_element": "fire"})
-	cm.unlocked_elements = ["fire"] # Player only has fire affinity
+	cm.player_level = 30
+	cm.unspent_skill_points = 5
 
 	# Steam requires ["fire", "water"]
 	var chk_steam_locked = cm.can_access_discipline("steam")
@@ -188,15 +219,19 @@ func _run():
 		"T7.2 Cannot unlock Steam_Vent skill while Steam discipline is locked",
 		"reason: %s" % chk_steam_skill.get("reason", ""))
 
-	# Now grant Water affinity (e.g. recruit water athlete)
-	cm.unlocked_elements.append("water")
+	# A Water teammate does not grant the captain Water affinity. Only a
+	# promotion-earned, player-selected element opens the fusion discipline.
+	cm.allies.append(cm.generate_athlete(1, "", "water", "Water Teammate"))
+	check.call(not cm.can_access_discipline("steam").get("can_access", true),
+		"T7.3 A Water teammate does not unlock the captain's Steam discipline")
+	cm.league_tier = 2
+	check.call(cm.unlock_next_element("water"), "T7.4 Silver opens the captain's Water element choice")
 	var chk_steam_unlocked = cm.can_access_discipline("steam")
-	check.call(chk_steam_unlocked.get("can_access", false), "T7.3 Steam discipline access UNLOCKED after acquiring Water affinity")
+	check.call(chk_steam_unlocked.get("can_access", false), "T7.5 Steam discipline opens after the captain owns Water")
 
 	# Now Steam_Vent can be unlocked!
-	cm.unspent_skill_points = 5
 	var chk_steam_skill_open = cm.can_unlock_skill("Steam_Vent")
-	check.call(chk_steam_skill_open.get("can_unlock", false), "T7.4 Steam_Vent is now available for unlocking")
+	check.call(chk_steam_skill_open.get("can_unlock", false), "T7.6 Steam_Vent is now available for SP purchase")
 
 	# --- SUITE 8: COMBINATION INTERNAL PROGRESSION ---
 	print("\n--- SUITE 8: Combination Internal Progression Tree ---")
@@ -215,8 +250,8 @@ func _run():
 
 	# --- SUITE 9: FORM VARIATION SWITCHING ---
 	print("\n--- SUITE 9: Form Variation Selection & Persistence ---")
-	cm.skill_variations["Combustion"] = "Explosion Outburst"
-	check.call(cm.skill_variations.get("Combustion") == "Explosion Outburst", "T9.1 Active form variation set to 'Explosion Outburst'")
+	cm.set_active_skill_form("Combustion", "punch")
+	check.call(cm.skill_variations.get("Combustion") == "punch", "T9.1 Active form variation set to 'punch'")
 
 	# --- SUITE 10: SAVE & LOAD PERSISTENCE ---
 	print("\n--- SUITE 10: Save & Load Persistence ---")
@@ -272,7 +307,8 @@ func _run():
 	print("\n--- SUITE 12: Triple Element Combinations & Outermost Ring ---")
 	cm.init_new_campaign({"player_name": "Ignis", "player_element": "fire"})
 	cm.allies = []
-	cm.unlocked_elements = ["fire", "water"] # Missing earth
+	cm.league_tier = 2
+	check.call(cm.unlock_next_element("water"), "T12.0 Player selects Water after Silver promotion")
 	cm.player_level = 30
 	cm.unspent_skill_points = 10
 
@@ -282,10 +318,12 @@ func _run():
 		"T12.1 Triple discipline Fire + Water + Earth locked when missing Earth",
 		"reason: %s" % chk_triple_locked.get("reason", ""))
 
-	# 12.2 Unlock after acquiring all 3 elements
-	cm.unlocked_elements.append("earth")
+	# 12.2 A third element requires the next league's choice slot.
+	check.call(not cm.unlock_next_element("earth"), "T12.2 Silver cannot choose a third element")
+	cm.league_tier = 3
+	check.call(cm.unlock_next_element("earth"), "T12.3 Gold opens the third element choice")
 	var chk_triple_unlocked = cm.can_access_discipline("fire_water_earth")
-	check.call(chk_triple_unlocked.get("can_access", false), "T12.2 Triple discipline unlocked after acquiring Earth")
+	check.call(chk_triple_unlocked.get("can_access", false), "T12.4 Triple discipline opens after Earth is player-owned")
 
 	# 12.3 Internal triple tree progression: Ore Synthesis -> Acid Dissolution -> Geothermal Obsidian
 	check.call(cm.can_unlock_skill("Ore_Synthesis").get("can_unlock", false), "T12.3 Ore Synthesis (Tier 1) available to unlock")

@@ -80,11 +80,11 @@ const ABILITIES = {
 		"damage": 26, "mp_cost": 9, "range": 2, "accuracy": 94,
 		"effect": "aoe_heat", "tier": "basic", "falloff_per_tile": 0.05,
 		"forms": {
-			"heat_wave": {"name": "Heat Wave", "range": 2, "dmg_mult": 1.00, "mp_mult": 0.85, "shape": "cardinal", "desc": "Direct infrared flash wave"},
+			"heat_wave": {"name": "Heat Veil", "range": 1, "dmg_mult": 0.00, "mp_mult": 0.85, "shape": "cardinal", "effect": "defense_buff", "desc": "Protect an ally with a heat shimmer that improves defense"},
 			"scorch_beam": {"name": "Scorch Beam", "range": 4, "dmg_mult": 1.10, "mp_mult": 1.05, "shape": "linear_front", "desc": "Focused beam of silent searing heat"},
-			"furnace_zone": {"name": "Furnace Zone", "range": 2, "dmg_mult": 0.80, "mp_mult": 1.20, "shape": "radial", "is_radial": true, "desc": "Radial infrared zone inflicting burn"}
+			"furnace_zone": {"name": "Furnace Zone", "range": 2, "dmg_mult": 0.80, "mp_mult": 1.20, "shape": "radial", "is_radial": true, "terrain_kind": "fire", "terrain_duration": 2, "desc": "Radial infrared zone leaves burning ground for two rounds"}
 		},
-		"desc": "Emit infrared heat in a radius without open flame."
+		"desc": "Shape infrared heat into a protective veil or a searing attack."
 	},
 	"Nuclear_Ignition": {
 		"name": "Nuclear Ignition", "element": "fire",
@@ -138,8 +138,8 @@ const ABILITIES = {
 		"effect": "slow", "tier": "basic", "falloff_per_tile": 0.08,
 		"forms": {
 			"frost_shard": {"name": "Frost Shard", "range": 3, "dmg_mult": 1.00, "mp_mult": 1.00, "shape": "linear_front", "desc": "Linear freezing spike"},
-			"frost_nova": {"name": "Frost Nova", "range": 2, "dmg_mult": 0.85, "mp_mult": 1.25, "shape": "radial", "is_radial": true, "desc": "Radial freezing shockwave"},
-			"ice_lance": {"name": "Ice Lance", "range": 1, "dmg_mult": 1.20, "mp_mult": 0.90, "shape": "cardinal", "desc": "Heavy melee ice piercer"}
+			"frost_nova": {"name": "Frost Nova", "range": 2, "dmg_mult": 0.85, "mp_mult": 1.25, "shape": "radial", "is_radial": true, "terrain_kind": "ice", "terrain_duration": 3, "desc": "Radial freezing shockwave leaves slowing ice for three rounds"},
+			"ice_lance": {"name": "Ice Lance", "range": 4, "dmg_mult": 1.05, "mp_mult": 1.10, "shape": "linear_front", "desc": "Long piercing ice lance"}
 		},
 		"desc": "Freeze moisture instantly. Applies Slow on hit."
 	},
@@ -205,7 +205,7 @@ const ABILITIES = {
 		"forms": {
 			"vapor_screen": {"name": "Vapor Screen", "range": 2, "dmg_mult": 1.00, "mp_mult": 0.85, "shape": "cardinal", "desc": "Dense wall of moisture granting heavy evasion"},
 			"choking_haze": {"name": "Choking Haze", "range": 3, "dmg_mult": 1.10, "mp_mult": 1.00, "shape": "linear_front", "desc": "Pressurized vapor spray obscuring enemy sightline"},
-			"fog_shroud": {"name": "Fog Shroud", "range": 2, "dmg_mult": 0.85, "mp_mult": 1.25, "shape": "radial", "is_radial": true, "desc": "Radial mist cloud concealing user and allies"}
+			"fog_shroud": {"name": "Fog Shroud", "range": 2, "dmg_mult": 0.85, "mp_mult": 1.25, "shape": "radial", "is_radial": true, "terrain_kind": "smoke", "terrain_duration": 3, "desc": "Radial mist cloud conceals allies and obscures shots for three rounds"}
 		},
 		"desc": "Disperse water into microscopic droplets — concealment or suffocation."
 	},
@@ -228,7 +228,7 @@ const ABILITIES = {
 		"effect": "barrier", "tier": "basic", "falloff_per_tile": 0.0,
 		"forms": {
 			"stone_skin": {"name": "Stone Skin", "range": 1, "dmg_mult": 1.00, "mp_mult": 0.85, "shape": "cardinal", "effect": "armor_buff", "desc": "Self armor & poise boost (+40 shield)"},
-			"rock_pillar": {"name": "Rock Pillar", "range": 2, "dmg_mult": 0.70, "mp_mult": 1.10, "shape": "linear_front", "is_cover": true, "desc": "Summons a stone barricade blocking LOS"},
+			"rock_pillar": {"name": "Rock Pillar", "range": 2, "dmg_mult": 0.70, "mp_mult": 1.10, "shape": "cardinal", "effect": "", "is_cover": true, "terrain_kind": "earth_wall", "desc": "Summons one permanent stone pillar until destroyed"},
 			"tremor_anchor": {"name": "Tremor Anchor", "range": 1, "dmg_mult": 1.10, "mp_mult": 1.00, "shape": "cardinal", "effect": "anchor", "desc": "Plants feet: immune to blitz steal & knockback"}
 		},
 		"desc": "Starter mineral bulwark and barrier fortification."
@@ -1314,16 +1314,16 @@ const SKILL_TREES = {
 			"ability_key": "Combustion"
 		},
 		{
-			"key": "Thermal_Radiation", "display_name": "Thermal Radiation", "discipline": "fire", "tier": "advanced",
-			"prerequisites": ["Combustion"], "level_req": 6, "sp_cost": 1,
-			"branch_index": 0, "branch_tier": 2, "branch_angle": -150.0,
-			"desc": "Emit intense infrared heat across a wide perimeter without open flame.",
+			"key": "Thermal_Radiation", "display_name": "Thermal Radiation", "discipline": "fire", "tier": "basic",
+			"prerequisites": [], "level_req": 1, "sp_cost": 1,
+			"branch_index": 0, "branch_tier": 1, "branch_angle": -180.0,
+			"desc": "Shape infrared heat into a protective veil or a searing attack.",
 			"ability_key": "Thermal_Radiation"
 		},
 		{
 			"key": "Nuclear_Ignition", "display_name": "Nuclear Ignition", "discipline": "fire", "tier": "mastery",
 			"prerequisites": ["Thermal_Radiation"], "level_req": 15, "sp_cost": 1,
-			"branch_index": 0, "branch_tier": 3, "branch_angle": -145.0,
+			"branch_index": 0, "branch_tier": 2, "branch_angle": -180.0,
 			"desc": "Trigger microscopic fission and fusion reactions for devastating area damage.",
 			"ability_key": "Nuclear_Ignition"
 		},
@@ -1520,16 +1520,16 @@ const SKILL_TREES = {
 			"ability_key": "Gale_Step"
 		},
 		{
-			"key": "Wind", "display_name": "Wind Vector", "discipline": "air", "tier": "advanced",
-			"prerequisites": ["Gale_Step"], "level_req": 6, "sp_cost": 1,
-			"branch_index": 0, "branch_tier": 2, "branch_angle": -140.0,
+			"key": "Wind", "display_name": "Wind Vector", "discipline": "air", "tier": "basic",
+			"prerequisites": [], "level_req": 1, "sp_cost": 1,
+			"branch_index": 0, "branch_tier": 1, "branch_angle": -85.0,
 			"desc": "Generate directed high-velocity airflow that pushes opponents back.",
 			"ability_key": "Wind"
 		},
 		{
 			"key": "Vacuum", "display_name": "Vacuum", "discipline": "air", "tier": "mastery",
 			"prerequisites": ["Wind"], "level_req": 15, "sp_cost": 1,
-			"branch_index": 0, "branch_tier": 3, "branch_angle": -135.0,
+			"branch_index": 0, "branch_tier": 2, "branch_angle": -85.0,
 			"desc": "Collapse atmospheric pressure pockets, creating lethal implosive vortices.",
 			"ability_key": "Vacuum"
 		},
@@ -1851,17 +1851,8 @@ func get_skills_for_level(element_key: String, player_level: int) -> Array:
 
 	var pool = ELEMENTS[element_key]["skill_pool"].duplicate()
 
-	# Gate pinnacle abilities — only offer if level 30+
-	if player_level < 30:
-		pool = pool.filter(func(key): return ABILITIES[key]["tier"] != "pinnacle")
-
-	# Gate mastery abilities by level
-	if player_level < 26:
-		pool = pool.filter(func(key): return ABILITIES[key]["tier"] != "mastery")
-
-	# Gate advanced abilities by level
-	if player_level < 11:
-		pool = pool.filter(func(key): return ABILITIES[key]["tier"] != "advanced")
+	# Offers, generated athletes, and the skill tree share one balance table.
+	pool = pool.filter(func(key): return player_level >= get_skill_level_req(ABILITIES[key]["tier"]))
 
 	return pool
 
@@ -1888,6 +1879,8 @@ func get_skills_for_athlete(element_key: String, player_level: int, count: int =
 	return pool.slice(0, min(count, pool.size()))
 
 func get_fusion_info(elem_a: String, elem_b: String) -> Dictionary:
+	if elem_a == elem_b:
+		return {}
 	for key in FUSIONS:
 		var item = FUSIONS[key]
 		if item["tier"] == "double" and item["elements"].has(elem_a) and item["elements"].has(elem_b):
@@ -1895,6 +1888,8 @@ func get_fusion_info(elem_a: String, elem_b: String) -> Dictionary:
 	return {}
 
 func get_triple_fusion(elem_a: String, elem_b: String, elem_c: String) -> Dictionary:
+	if elem_a == elem_b or elem_a == elem_c or elem_b == elem_c:
+		return {}
 	for key in FUSIONS:
 		var item = FUSIONS[key]
 		if item["tier"] == "triple" and item["elements"].has(elem_a) and item["elements"].has(elem_b) and item["elements"].has(elem_c):

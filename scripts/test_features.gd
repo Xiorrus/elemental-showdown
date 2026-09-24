@@ -35,7 +35,9 @@ func _run():
     print("Player initial pos: ", player.position, " frame: ", player.sprite.frame)
     print("Enemy initial pos: ", enemy.position, " frame: ", enemy.sprite.frame)
     assert(player.position == Vector2(3 * 64 + 32, 4 * 64 + 32), "Player must be centered in tile (3,4)")
-    assert(enemy.position == Vector2(7 * 64 + 32, 4 * 64 + 32), "Enemy must be centered in tile (7,4)")
+    var enemy_tile = Vector2i(floor(enemy.position / 64.0))
+    assert(enemy.position == Vector2(enemy_tile * 64) + Vector2(32, 32), "Enemy must be centered on a tile")
+    assert(enemy_tile.x >= 6 and enemy_tile.x <= 10 and enemy_tile.y >= 1 and enemy_tile.y <= 8, "Enemy formation must begin on the far side")
     assert(player.sprite.frame == 4, "Player starts facing Right (frame 4)")
     assert(enemy.sprite.frame == 8, "Enemy starts facing Left (frame 8)")
     print("[PASS] Initial positions and facing verified.")
@@ -43,7 +45,7 @@ func _run():
     # 4. Movement & 4-directional facing check
     player.moves_remaining = 10  # Ensure ample moves for 4 directional test steps
     # Move Right to tile (4, 4)
-    player.on_move_tile_clicked(Vector2i(4, 4), 1)
+    await player.on_move_tile_clicked(Vector2i(4, 4), 1)
     assert(player.position == Vector2(4 * 64 + 32, 4 * 64 + 32), "Player centered at (4,4)")
     assert(player.sprite.frame == 4, "Player must face Right (frame 4)")
     print("[PASS] Move Right: frame=", player.sprite.frame)
@@ -51,7 +53,7 @@ func _run():
         await process_frame
 
     # Move Down to tile (4, 5)
-    player.on_move_tile_clicked(Vector2i(4, 5), 1)
+    await player.on_move_tile_clicked(Vector2i(4, 5), 1)
     assert(player.position == Vector2(4 * 64 + 32, 5 * 64 + 32), "Player centered at (4,5)")
     assert(player.sprite.frame == 0, "Player must face Down/Front (frame 0)")
     print("[PASS] Move Down: frame=", player.sprite.frame)
@@ -59,7 +61,7 @@ func _run():
         await process_frame
 
     # Move Up to tile (4, 4) -> BACK VIEW
-    player.on_move_tile_clicked(Vector2i(4, 4), 1)
+    await player.on_move_tile_clicked(Vector2i(4, 4), 1)
     assert(player.position == Vector2(4 * 64 + 32, 4 * 64 + 32), "Player centered at (4,4)")
     assert(player.sprite.frame == 12, "Player must face Up / Back view (frame 12)")
     print("[PASS] Move Up (Back view): frame=", player.sprite.frame)
@@ -67,7 +69,7 @@ func _run():
         await process_frame
 
     # Move Left to tile (3, 4)
-    player.on_move_tile_clicked(Vector2i(3, 4), 1)
+    await player.on_move_tile_clicked(Vector2i(3, 4), 1)
     assert(player.position == Vector2(3 * 64 + 32, 4 * 64 + 32), "Player centered at (3,4)")
     assert(player.sprite.frame == 8, "Player must face Left (frame 8)")
     print("[PASS] Move Left: frame=", player.sprite.frame)
@@ -84,6 +86,11 @@ func _run():
     player.on_right_mouse_clicked()
     assert(bm.current_state == bm.State.ENEMY_TURN, "RMB should advance to ENEMY_TURN")
     print("[PASS] RMB in ACT phase successfully advanced to ENEMY_TURN!\n")
+
+    # Let the entire enemy turn resolve before reusing these live combatants.
+    while bm.current_state == bm.State.ENEMY_TURN:
+        await process_frame
+    bm.start_player_act()
 
     # ═════════════════════════════════════════════════════════════════════════
     #  COMPREHENSIVE HEADLESS E2E TEST SUITE (TIERS 1 - 4)
@@ -155,12 +162,15 @@ func _run():
                     mouse_filter_ok = false
     check.call(projection_valid and mouse_filter_ok, "T1.6 Floating Feedback: Canvas transform screen pos valid and non-blocking mouse filter", "Projection or mouse_filter failed")
 
-    # T1.7 Layout Repairs (F7): Turn Ribbon 500px, Skill Modal 520px, Ability Slot side-by-side
+    # T1.7 Layout Repairs (F7): Turn Ribbon 500px, SP-only skill tree, Ability Slot side-by-side
     var ribbon_ok = (ui_node.turn_indicator_panel != null and ui_node.turn_indicator_panel.size.x == 500 and ui_node.turn_indicator_panel.position.x == 326)
-    var skill_modal_ok = (ui_node.skill_offer_panel != null and ui_node.skill_offer_panel.size.x == 520 and ui_node.skill_offer_panel.position.x == 316)
-    var autowrap_ok = (ui_node.offer_buttons.size() > 0 and ui_node.offer_buttons[0].autowrap_mode == TextServer.AUTOWRAP_WORD_SMART)
-    var slot_layout_ok = (ui_node.ability_slots.size() > 0 and ui_node.ability_slots[0]["cost"].position.x == 26 and ui_node.ability_slots[0]["range"].position.x == 96)
-    check.call(ribbon_ok and skill_modal_ok and autowrap_ok and slot_layout_ok, "T1.7 Layout Repairs: Ribbon 500px, Modal 520px with word wrap, ability slots side-by-side", "ribbon=%s modal=%s wrap=%s slot=%s" % [ribbon_ok, skill_modal_ok, autowrap_ok, slot_layout_ok])
+    var sp_only_ok = not ui_node.has_method("show_skill_offer")
+    var slot_layout_ok = not ui_node.ability_slots.is_empty()
+    for slot in ui_node.ability_slots:
+        var cost_rect = slot["cost"].get_rect()
+        var range_rect = slot["range"].get_rect()
+        slot_layout_ok = slot_layout_ok and cost_rect.end.x <= range_rect.position.x and is_equal_approx(cost_rect.position.y, range_rect.position.y)
+    check.call(ribbon_ok and sp_only_ok and slot_layout_ok, "T1.7 Layout Repairs: Ribbon 500px, SP-only skill unlocks, ability slots side-by-side", "ribbon=%s sp_only=%s slot=%s" % [ribbon_ok, sp_only_ok, slot_layout_ok])
 
     # T1.8 Dynamic Character Elemental Identity & Presentation (F8)
     var colors_defined = (ui_node.ELEMENT_UI_COLORS.has("fire") and ui_node.ELEMENT_UI_COLORS.has("water") and ui_node.ELEMENT_UI_COLORS.has("earth") and ui_node.ELEMENT_UI_COLORS.has("air"))
@@ -287,7 +297,7 @@ func _run():
         var ab = edata.ABILITIES[player.equipped_abilities[0]]
         player._execute_ability(ab)
         var range_handled = (enemy.hp == pre_attack_hp and player.mp == pre_attack_mp)
-        check.call(range_handled, "T2.3 Range Boundary: Out-of-range attack refunds MP and deals 0 damage", "MP or HP modified on out of range attack")
+        check.call(range_handled, "T2.3 Range Boundary: Out-of-range attack preserves MP and deals 0 damage", "MP or HP modified on out of range attack")
     else:
         check.call(true, "T2.3 Range Boundary: (ElementData verified)")
     player.position = saved_p_pos
@@ -314,21 +324,26 @@ func _run():
     bm.current_state = bm.State.PLAYER_ACT
     player.position = Vector2(3 * 64 + 32, 4 * 64 + 32)
     enemy.position = Vector2(4 * 64 + 32, 4 * 64 + 32)
+    player.hp = player.max_hp # This round includes a real enemy counterattack.
     player.mp = 100
+    player.dexterity = 200 # Deterministic hit; directional evasion has its own suite.
     enemy.hp = 100
     var initial_e_hp = enemy.hp
-    await player.use_ability(0)
+    await player.use_ability(1) # Support occupies slot 0; Combustion is the attack.
     await process_frame
 
     var attack_processed = (enemy.hp < initial_e_hp)
     var phase_advanced = (bm.current_state == bm.State.ENEMY_TURN or bm.current_state == bm.State.PLAYER_MOVE)
     check.call(attack_processed and phase_advanced, "T3.1 Cross-Feature: Attack deals damage and advances combat turn state", "Enemy HP=%d (was %d), state=%s" % [enemy.hp, initial_e_hp, bm.current_state])
 
+    while bm.current_state == bm.State.ENEMY_TURN:
+        await process_frame
+
     print("\n================== TIER 4: REAL-WORLD SCENARIOS ==================")
     # T4.1 Match Lifecycle Simulation to Victory
     player.hp = 100
     player.mp = 100
-    player.dexterity = 50
+    player.dexterity = 200 # Victory timing is the subject here, not hit RNG.
     enemy.hp = 25 # Low HP for decisive finishing strike
     enemy.facing_frame = 4
     enemy.sprite.frame = 4
@@ -336,7 +351,7 @@ func _run():
     enemy.position = Vector2(4 * 64 + 32, 4 * 64 + 32)
     bm.current_state = bm.State.PLAYER_ACT
 
-    await player.use_ability(0)
+    await player.use_ability(1)
     await process_frame
 
     var combat_concluded = (not is_instance_valid(enemy) or enemy.hp <= 0 or bm.current_state == bm.State.BATTLE_OVER)
@@ -352,11 +367,12 @@ func _run():
         for f in failures:
             print("   * " + f)
         print("========================================================\n")
-        assert(test_counts[2] == 0, "%d test(s) failed during E2E verification." % test_counts[2])
     else:
         print("================== ALL TESTS PASSED! ==================\n")
 
-    quit()
+    scn.queue_free()
+    await process_frame
+    quit(1 if test_counts[2] > 0 else 0)
 
 func test_player_animation_reentrancy_guard(player, enemy, bm, check) -> bool:
     var saved_p_mp = player.mp

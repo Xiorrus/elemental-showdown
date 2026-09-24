@@ -42,7 +42,7 @@ func _run():
 	})
 
 	var init_ok = (cm.player_name == "Valen" and cm.player_element == "earth" and cm.team_name == "Terra Vanguards")
-	var starter_skill_ok = (cm.equipped_abilities == ["Metal"] and cm.unlocked_abilities == ["Metal"])
+	var starter_skill_ok = (cm.equipped_abilities == ["Stone_Plating", "Metal"] and cm.unlocked_abilities == ["Stone_Plating", "Metal"])
 	var base_state_ok = (cm.energy == 100 and cm.is_fatigued == false and cm.bench_risk == false and cm.player_level == 1)
 	check.call(init_ok and starter_skill_ok and base_state_ok, "T1.3 New Campaign init assigns player identity, starter ability, and base state", "init=%s skill=%s state=%s" % [init_ok, starter_skill_ok, base_state_ok])
 
@@ -154,14 +154,22 @@ func _run():
 	var tab_int = hub_scn.get_node_or_null("MainTabs/TabIntel")
 
 	var hub_tabs_ok = (tab_sched != null and tab_act != null and tab_sk != null and tab_tm != null and tab_int != null)
-	var next_opp_ok = (hub_scn.lbl_next_opp_name.text.contains("Hydro Vipers"))
+	var next_fixture = cm.get_next_scheduled_match()
+	var scheduled_opponent = str(next_fixture.get("enemy_team", ""))
+	var season_summary = cm.get_season_summary()
+	var season_title = hub_scn.get_node_or_null("MainTabs/TabSchedule/LeagueCampaignCard/Title")
+	var season_objective = hub_scn.get_node_or_null("MainTabs/TabSchedule/LeagueCampaignCard/HBoxObj/Objective")
+	var timeline_title = hub_scn.get_node_or_null("MainTabs/TabSchedule/TimelineSection/Title")
+	var next_opp_ok = not scheduled_opponent.is_empty() and hub_scn.lbl_next_opp_name.text.contains(scheduled_opponent)
+	var season_card_ok = season_summary.get("active", false) and season_title != null and season_title.text.contains("Season %d" % season_summary.get("season_number", 1)) and season_objective != null and season_objective.text.contains(scheduled_opponent) and timeline_title != null and timeline_title.text.contains("Week %d/32" % season_summary.get("week", 1))
 
-	# Test Training Activity
+	# Focused training consumes a day and energy; repeated sessions grant a stat, not XP.
 	cm.energy = 100
 	var pre_xp = cm.player_xp
-	hub_scn._on_activity_train()
-	var train_ok = (cm.player_xp == pre_xp + 40 and cm.energy == 80) # 100 - 20 = 80
-	check.call(hub_tabs_ok and next_opp_ok and train_ok, "T7.1 Campaign Hub tabs present, tournament schedule displays rival, and training grants XP", "tabs=%s opp=%s train=%s" % [hub_tabs_ok, next_opp_ok, train_ok])
+	var pre_day = cm.campaign_day
+	var train_result = cm.train_stat("agility")
+	var train_ok = train_result.get("success", false) and cm.player_xp == pre_xp and cm.energy == 85 and cm.campaign_day == pre_day + 1 and cm.training_progress.get("agility", 0) == 1
+	check.call(hub_tabs_ok and next_opp_ok and season_card_ok and train_ok, "T7.1 Campaign Hub shows the scheduled club opponent and season, and focused training advances one day", "tabs=%s rival=%s season=%s train=%s" % [hub_tabs_ok, next_opp_ok, season_card_ok, train_ok])
 	hub_scn.queue_free()
 	await process_frame
 

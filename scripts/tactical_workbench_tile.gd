@@ -254,3 +254,74 @@ func _can_drop_data(_at_position: Vector2, data: Variant) -> bool:
 func _drop_data(_at_position: Vector2, data: Variant) -> void:
 	if is_player_zone and (data is Dictionary) and data.get("type") == "squadmate":
 		ally_dropped.emit(str(data.get("name", "")), tile_coord)
+
+func _make_custom_tooltip(for_text: String) -> Object:
+	if for_text.strip_edges().is_empty():
+		return null
+
+	var panel := PanelContainer.new()
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.04, 0.06, 0.10, 0.96)
+
+	if is_selected:
+		sb.border_color = UITheme.GOLD_PRIMARY
+	elif is_player_zone and ally_name != "":
+		sb.border_color = UITheme.BORDER_GOLD
+	elif is_enemy:
+		sb.border_color = Color(0.90, 0.32, 0.24, 0.85)
+	else:
+		sb.border_color = Color(0.25, 0.35, 0.50, 0.70)
+
+	sb.set_border_width_all(1)
+	sb.set_corner_radius_all(6)
+	sb.shadow_color = Color(0, 0, 0, 0.55)
+	sb.shadow_size = 6
+	sb.content_margin_left = 12
+	sb.content_margin_top = 8
+	sb.content_margin_right = 12
+	sb.content_margin_bottom = 8
+	panel.add_theme_stylebox_override("panel", sb)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 3)
+	panel.add_child(vbox)
+
+	var cinzel = load("res://assets/fonts/Cinzel-Bold.ttf") if ResourceLoader.exists("res://assets/fonts/Cinzel-Bold.ttf") else null
+
+	var lines = for_text.split("\n")
+	if lines.size() > 0:
+		var head_box := HBoxContainer.new()
+		head_box.add_theme_constant_override("separation", 6)
+		vbox.add_child(head_box)
+
+		var title_lbl := Label.new()
+		if cinzel:
+			title_lbl.add_theme_font_override("font", cinzel)
+		title_lbl.add_theme_font_size_override("font_size", 11)
+
+		if is_selected:
+			title_lbl.add_theme_color_override("font_color", UITheme.GOLD_PRIMARY)
+		elif is_player_zone and ally_name != "":
+			title_lbl.add_theme_color_override("font_color", Color(1.0, 0.95, 0.85))
+		elif is_enemy:
+			title_lbl.add_theme_color_override("font_color", Color(1.0, 0.5, 0.45))
+		else:
+			title_lbl.add_theme_color_override("font_color", Color(0.85, 0.90, 1.0))
+		title_lbl.text = lines[0]
+		head_box.add_child(title_lbl)
+
+	if lines.size() > 1:
+		var sub_lbl := Label.new()
+		sub_lbl.text = lines[1]
+		sub_lbl.add_theme_font_size_override("font_size", 10)
+		sub_lbl.add_theme_color_override("font_color", Color(0.55, 0.85, 0.96))
+		vbox.add_child(sub_lbl)
+
+	if lines.size() > 2:
+		var hint_lbl := Label.new()
+		hint_lbl.text = lines[2]
+		hint_lbl.add_theme_font_size_override("font_size", 9)
+		hint_lbl.add_theme_color_override("font_color", UITheme.TEXT_MUTED)
+		vbox.add_child(hint_lbl)
+
+	return panel

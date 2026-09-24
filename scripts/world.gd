@@ -139,9 +139,16 @@ func _ready():
 		player.apply_element_stats(player_elem)
 	if enemy.has_method("apply_element_stats"):
 		enemy.apply_element_stats(enemy_elem)
+	if cm and cm.has_active_campaign and cm.has_team and cm.active_match_type != "street":
+		enemy.apply_career_scaling(cm.league_tier, cm.season_number)
 
 	battle_manager.enemy  = enemy
 	battle_manager.player = player
+	var terrain = preload("res://scripts/battle_terrain.gd").new()
+	terrain.name = "BattleTerrain"
+	terrain.z_index = -2
+	add_child(terrain)
+	battle_manager.terrain = terrain
 
 	# ── Instantiate GridOverlay ────────────────
 	var grid_overlay = preload("res://scripts/grid_overlay.gd").new()
@@ -149,6 +156,7 @@ func _ready():
 	grid_overlay.tilemap = tilemap
 	grid_overlay.player = player
 	grid_overlay.enemy = enemy
+	grid_overlay.terrain = terrain
 	add_child(grid_overlay)
 
 	player.grid_overlay = grid_overlay
@@ -305,20 +313,21 @@ func _ready():
 			extra_enemy.player = player
 			extra_enemy.element_db = edata
 			extra_enemy.set_appearance(extra_enemy.element)
+			if cm and cm.has_active_campaign and cm.has_team and cm.active_match_type != "street":
+				extra_enemy.apply_career_scaling(cm.league_tier, cm.season_number)
 			enemy_units.append(extra_enemy)
 
 	battle_manager.player_units = player_units
 	battle_manager.enemy_units = enemy_units
 	battle_manager.active_player_unit = player
+	_arrange_enemy_formation(enemy_units, cm.active_enemy_team if cm and cm.has_active_campaign else enemy_elem)
 
 	# ── Initial UI sync ───────────────────────
 	await get_tree().process_frame
 
 	# Sync progression, stats, and equipped abilities from CampaignManager
 	if cm and cm.has_active_campaign:
-		player.level = cm.player_level
-		player.xp = cm.player_xp
-		player.xp_to_next_level = cm.player_xp_to_next
+		player.sync_campaign_progression(cm)
 		player.base_speed = cm.player_speed
 		player.agility = cm.player_agility
 		player.dexterity = cm.player_dexterity
@@ -368,3 +377,26 @@ func _ready():
 	# Start battle
 	battle_manager.start_player_turn()
 	print("[World] Battle started: %s (%s) vs %s (%s)" % [player_display_name, player_elem, enemy_display_name, enemy_elem])
+
+func _arrange_enemy_formation(units: Array, opponent_identity: String) -> void:
+	# Place fighters according to the range of their strongest affordable attack.
+	# A team-specific row rotation means opponents no longer share one opening layout.
+	var rotation: int = absi(opponent_identity.hash()) % 5
+	var lanes := [4, 2, 6, 3, 5]
+	var occupied: Array[Vector2i] = []
+	for i in range(units.size()):
+		var fighter = units[i]
+		if not is_instance_valid(fighter): continue
+		var preferred_range := 1
+		var best_damage := -1
+		for ability in fighter.ability_pool:
+			if int(ability.get("damage", 0)) > best_damage:
+				best_damage = int(ability.get("damage", 0))
+				preferred_range = int(ability.get("range", 1))
+		var x := 9 if preferred_range >= 4 else (8 if preferred_range >= 3 else 6)
+		var row: int = lanes[(i + rotation) % lanes.size()]
+		var tile := Vector2i(x, row)
+		while occupied.has(tile):
+			tile.x += 1
+		occupied.append(tile)
+		fighter.position = Vector2(tile.x * 64 + 32, tile.y * 64 + 32)

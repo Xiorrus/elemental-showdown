@@ -345,7 +345,7 @@ modulate = Color(0.91, 0.28, 0.33, 1)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.91, 0.28, 0.33, 1)
 theme_override_font_sizes/font_size = 11
-text = "Stamina 40/100"
+text = "Energy 40/100"
 
 [node name="BtnSaveDisk" type="Button" parent="HeaderBar"]
 custom_minimum_size = Vector2(60, 28)
@@ -414,6 +414,7 @@ theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_fonts/font = ExtResource("6_font")
 theme_override_font_sizes/font_size = 18
 text = "Neon Circuit — Round of 16"
+clip_text = true
 
 [node name="PromotionHBox" type="HBoxContainer" parent="MainTabs/TabSchedule/LeagueCampaignCard"]
 layout_mode = 2
@@ -455,9 +456,11 @@ layout_mode = 2
 
 [node name="Objective" type="Label" parent="MainTabs/TabSchedule/LeagueCampaignCard/HBoxObj"]
 layout_mode = 2
+size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.22, 0.78, 0.91, 1)
 theme_override_font_sizes/font_size = 10
 text = "Objective: Defeat regional rivals to advance to tournament finals"
+clip_text = true
 
 [node name="Spacer" type="Control" parent="MainTabs/TabSchedule/LeagueCampaignCard/HBoxObj"]
 layout_mode = 2
@@ -1437,7 +1440,14 @@ layout_mode = 2
 theme_override_colors/font_color = Color(0.92, 0.76, 0.28, 1)
 theme_override_fonts/font = ExtResource("6_font")
 theme_override_font_sizes/font_size = 10
-text = "◆ Campaign Timeline (7 Days)"
+text = "◆ Street Circuit • Day 1"
+
+[node name="CalendarOpenButton" type="Button" parent="MainTabs/TabSchedule/TimelineSection"]
+custom_minimum_size = Vector2(0, 30)
+layout_mode = 2
+theme_override_fonts/font = ExtResource("6_font")
+theme_override_font_sizes/font_size = 11
+text = "Open Full Career Calendar"
 
 [node name="TimelineHBox" type="HBoxContainer" parent="MainTabs/TabSchedule/TimelineSection"]
 custom_minimum_size = Vector2(0, 32)
@@ -1525,7 +1535,7 @@ theme_override_styles/panel = SubResource("StyleBoxFlat_timeline_boss")
 layout_mode = 2
 theme_override_colors/font_color = Color(0.95, 0.45, 0.50, 1)
 theme_override_font_sizes/font_size = 9
-text = "Day 7 • Boss"
+text = "D7"
 horizontal_alignment = 1
 
 [node name="TabTeam" type="ScrollContainer" parent="MainTabs"]
@@ -1655,27 +1665,32 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_override_constants/separation = 16
 
-[node name="ProfileCol" type="VBoxContainer" parent="MainTabs/TabSkills/HBox"]
+[node name="ProfileCol" type="ScrollContainer" parent="MainTabs/TabSkills/HBox"]
 custom_minimum_size = Vector2(280, 0)
 layout_mode = 2
 size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="Content" type="VBoxContainer" parent="MainTabs/TabSkills/HBox/ProfileCol"]
+layout_mode = 2
+size_flags_horizontal = 3
 theme_override_constants/separation = 10
 
-[node name="PanelStats" type="PanelContainer" parent="MainTabs/TabSkills/HBox/ProfileCol"]
+[node name="PanelStats" type="PanelContainer" parent="MainTabs/TabSkills/HBox/ProfileCol/Content"]
 layout_mode = 2
 
-[node name="Margin" type="MarginContainer" parent="MainTabs/TabSkills/HBox/ProfileCol/PanelStats"]
+[node name="Margin" type="MarginContainer" parent="MainTabs/TabSkills/HBox/ProfileCol/Content/PanelStats"]
 layout_mode = 2
 theme_override_constants/margin_left = 14
 theme_override_constants/margin_top = 10
 theme_override_constants/margin_right = 14
 theme_override_constants/margin_bottom = 10
 
-[node name="VB" type="VBoxContainer" parent="MainTabs/TabSkills/HBox/ProfileCol/PanelStats/Margin"]
+[node name="VB" type="VBoxContainer" parent="MainTabs/TabSkills/HBox/ProfileCol/Content/PanelStats/Margin"]
 layout_mode = 2
 theme_override_constants/separation = 6
 
-[node name="Title" type="Label" parent="MainTabs/TabSkills/HBox/ProfileCol/PanelStats/Margin/VB"]
+[node name="Title" type="Label" parent="MainTabs/TabSkills/HBox/ProfileCol/Content/PanelStats/Margin/VB"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.91, 0.66, 0.19, 1)
 theme_override_fonts/font = ExtResource("6_font")
@@ -1683,7 +1698,7 @@ theme_override_font_sizes/font_size = 12
 text = "◆ Combatant Profile"
 horizontal_alignment = 1
 
-[node name="LblStats" type="Label" parent="MainTabs/TabSkills/HBox/ProfileCol/PanelStats/Margin/VB"]
+[node name="LblStats" type="Label" parent="MainTabs/TabSkills/HBox/ProfileCol/Content/PanelStats/Margin/VB"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.9, 0.95, 1, 1)
 theme_override_font_sizes/font_size = 11
@@ -1694,41 +1709,41 @@ Combat Power: 8,990 CP
 Max HP: 2,650  •  Max MP: 130
 Attack: 340  •  Defense: 210  •  Speed: 3"
 
-[node name="PanelActions" type="PanelContainer" parent="MainTabs/TabSkills/HBox/ProfileCol"]
+[node name="PanelActions" type="PanelContainer" parent="MainTabs/TabSkills/HBox/ProfileCol/Content"]
 layout_mode = 2
 
-[node name="Margin" type="MarginContainer" parent="MainTabs/TabSkills/HBox/ProfileCol/PanelActions"]
+[node name="Margin" type="MarginContainer" parent="MainTabs/TabSkills/HBox/ProfileCol/Content/PanelActions"]
 layout_mode = 2
 theme_override_constants/margin_left = 14
 theme_override_constants/margin_top = 10
 theme_override_constants/margin_right = 14
 theme_override_constants/margin_bottom = 10
 
-[node name="VB" type="VBoxContainer" parent="MainTabs/TabSkills/HBox/ProfileCol/PanelActions/Margin"]
+[node name="VB" type="VBoxContainer" parent="MainTabs/TabSkills/HBox/ProfileCol/Content/PanelActions/Margin"]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="BtnSave" type="Button" parent="MainTabs/TabSkills/HBox/ProfileCol/PanelActions/Margin/VB"]
+[node name="BtnSave" type="Button" parent="MainTabs/TabSkills/HBox/ProfileCol/Content/PanelActions/Margin/VB"]
 custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
 theme_override_fonts/font = ExtResource("6_font")
 theme_override_font_sizes/font_size = 11
 text = "Save Campaign"
 
-[node name="BtnDevUnlock" type="Button" parent="MainTabs/TabSkills/HBox/ProfileCol/PanelActions/Margin/VB"]
+[node name="BtnDevUnlock" type="Button" parent="MainTabs/TabSkills/HBox/ProfileCol/Content/PanelActions/Margin/VB"]
 custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
 theme_override_font_sizes/font_size = 11
 text = "Dev: Unlock All & Lv. 30"
 
-[node name="BtnMainMenu" type="Button" parent="MainTabs/TabSkills/HBox/ProfileCol/PanelActions/Margin/VB"]
+[node name="BtnMainMenu" type="Button" parent="MainTabs/TabSkills/HBox/ProfileCol/Content/PanelActions/Margin/VB"]
 custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
 theme_override_fonts/font = ExtResource("6_font")
 theme_override_font_sizes/font_size = 11
 text = "Main Menu"
 
-[node name="SaveFeedback" type="Label" parent="MainTabs/TabSkills/HBox/ProfileCol/PanelActions/Margin/VB"]
+[node name="SaveFeedback" type="Label" parent="MainTabs/TabSkills/HBox/ProfileCol/Content/PanelActions/Margin/VB"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 10
 horizontal_alignment = 1

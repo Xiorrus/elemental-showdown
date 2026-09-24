@@ -57,7 +57,7 @@ func _run() -> void:
 	_assert("C1.8 Positional init sets has_team = false and tier = 1", cm.has_team == false and cm.league_tier == 1)
 
 	# ──────────────────────────────────────────────────────────
-	# CRITERION 2: Recruitment trigger -> roster populated with 3–5 fighters, all stats inside tier-1 ranges
+# CRITERION 2: Recruitment offer -> explicit acceptance -> 3–5 tier-1 fighters
 	# ──────────────────────────────────────────────────────────
 	print("\n--- CRITERION 2: Team Recruitment & Tier-1 Stat Ranges ---")
 	# Start fresh solo campaign
@@ -68,18 +68,26 @@ func _run() -> void:
 	var w2 = cm.record_street_win()
 	var w3 = cm.record_street_win()
 
-	_assert("C2.1 Win 1 & 2 do not trigger recruitment", not w1 and not w2)
-	_assert("C2.2 Win 3 reaches threshold and triggers recruitment", w3)
-	_assert("C2.3 Roster is populated with 3 to 5 fighters", cm.allies.size() >= 3 and cm.allies.size() <= 5, "size=%d" % cm.allies.size())
-	_assert("C2.4 has_team transitioned to true", cm.has_team == true)
-	_assert("C2.5 active_match_format updated to '3v3'", cm.active_match_format == "3v3")
+	_assert("C2.1 Win 1 & 2 do not trigger an offer", not w1 and not w2)
+	_assert("C2.2 Win 3 creates a pending offer", w3 and cm.recruitment_offer_pending)
+	_assert("C2.3 A pending offer does not silently recruit fighters", cm.allies.is_empty() and not cm.has_team)
+	_assert("C2.4 A pending offer keeps solo format", cm.active_match_format == "1v1")
+	var accepted_offer = cm.accept_recruitment_offer()
+	_assert("C2.5 Player can explicitly accept the recruitment offer", accepted_offer and not cm.recruitment_offer_pending)
+	_assert("C2.6 Accepted offer creates a captain plus recruited teammates", cm.allies.size() >= 4 and cm.allies.size() <= 6
+		and not cm.get_ally(cm.player_name).is_empty(), "size=%d" % cm.allies.size())
+	_assert("C2.7 Acceptance joins a team and changes to 3v3", cm.has_team and cm.active_match_format == "3v3")
+	_assert("C2.8 The same offer cannot be accepted twice", not cm.accept_recruitment_offer())
 
-	# Verify all recruited fighters adhere strictly to Tier 1 stat bounds
+	# Verify the generated recruits adhere to Tier 1 bounds. The captain keeps
+	# their existing player stats, which have a separate progression curve.
 	# Tier 1 bounds from ORIGINAL_REQUEST.md line 130:
 	# HP: 70–100, MP: 80–110, Speed: 2–3, Agility: 16–28, Dex: 20–30, Stamina: 80–110, Level: 1–5
 	var all_stats_valid = true
 	var stat_failure_detail = ""
 	for f in cm.allies:
+		if f.get("name", "") == cm.player_name:
+			continue
 		if f.get("league_tier", 0) != 1:
 			all_stats_valid = false
 			stat_failure_detail = "%s invalid tier %s" % [f.get("name"), str(f.get("league_tier"))]
@@ -112,7 +120,7 @@ func _run() -> void:
 			all_stats_valid = false
 			stat_failure_detail = "%s Level %d out of [1, 5]" % [f.get("name"), f["level"]]
 			break
-	_assert("C2.6 All recruited fighters have stats strictly inside Tier 1 ranges", all_stats_valid, stat_failure_detail)
+	_assert("C2.9 All recruited fighters have stats strictly inside Tier 1 ranges", all_stats_valid, stat_failure_detail)
 
 	# ──────────────────────────────────────────────────────────
 	# CRITERION 3: Each fighter has a unique name and potential score in 1–100

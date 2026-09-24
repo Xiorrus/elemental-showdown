@@ -1,14 +1,13 @@
 extends CharacterBody2D
+const AbilityGeometryScript = preload("res://scripts/ability_geometry.gd")
 
 # ──────────────────────────────────────────────
 #  ELEMENTAL SHOWDOWN — Player
-#  Implements: element system, XP/leveling, skill unlock offers,
-#              mana regen, artifact slot, injury tracking
+#  Implements: element combat, mana regen, artifact slot, injury tracking.
+#  Persistent levels, XP, and skill purchases belong to CampaignManager.
 # ──────────────────────────────────────────────
 
 const TILE_SIZE = 64
-const XP_PER_LEVEL_BASE = 100       # XP needed for level 1→2
-const XP_SCALE_FACTOR = 1.18        # Each level requires ~18% more XP
 const MP_REGEN_PER_TURN = 8         # MP recovered at start of each player turn
 const MAX_HP = 100                  # Overridden by element stats on _ready
 const MAX_MP = 100
@@ -40,13 +39,13 @@ var has_acted: bool = false:
 		if sprite:
 			sprite.modulate = Color(0.55, 0.55, 0.55, 1.0) if has_acted else Color.WHITE
 
-# ── XP / Leveling ─────────────────────────────
+# ── Campaign progression snapshot for combat display ──
 var level: int = 1
 var xp: int = 0
-var xp_to_next_level: int = XP_PER_LEVEL_BASE
+var xp_to_next_level: int = 100
 
 # ── Skills ────────────────────────────────────
-# Keys into ElementData.ABILITIES. Player starts with one starter ability.
+# Keys into ElementData.ABILITIES. CampaignManager grants two starter abilities.
 var unlocked_abilities: Array = []
 # The 4 abilities currently equipped (shown in UI, usable in combat)
 var equipped_abilities: Array = []
@@ -114,18 +113,14 @@ func _ready():
 	# Apply element base stats
 	apply_element_stats(element)
 
-	# Give starter ability (first basic skill of element).
-	# Only auto-populate if no skills have been assigned yet — world.gd sets these
-	# from CampaignManager after add_child(), so we must not overwrite them.
-	if equipped_abilities.is_empty() and element_db and element_db.ELEMENTS.has(element):
-		var pool = element_db.ELEMENTS[element]["skill_pool"]
-		for key in pool:
-			if element_db.ABILITIES[key]["tier"] == "basic":
-				_unlock_ability(key)
-				break
+	# The exhibition fallback uses the same support/attack starters as a career.
+	# World may replace this loadout with saved campaign skills after add_child().
+	var cm = get_node_or_null("/root/CampaignManager")
+	if equipped_abilities.is_empty() and cm and cm.DEFAULT_ELEMENT_SKILLS.has(element):
+		for key in cm.DEFAULT_ELEMENT_SKILLS[element]:
+			_unlock_ability(key)
 
 	moves_remaining = get_total_speed()
-	var cm = get_node_or_null("/root/CampaignManager")
 	var edata_init = element_db if element_db else get_node_or_null("/root/ElementData")
 	for ab_k in equipped_abilities:
 		if cm and cm.skill_variations.has(ab_k):
@@ -169,6 +164,10 @@ func _unlock_ability(key: String):
 		equipped_abilities.append(key)
 
 func equip_ability(key: String):
+	if not unlocked_abilities.has(key):
+		return
+	if equipped_abilities.has(key):
+		return
 	# Replaces last slot or adds if space
 	if equipped_abilities.size() < 4:
 		equipped_abilities.append(key)
@@ -178,48 +177,17 @@ func equip_ability(key: String):
 		ui.update_abilities(equipped_abilities, element_db)
 
 # ──────────────────────────────────────────────
-#  XP / LEVEL UP
+#  CAMPAIGN PROGRESSION DISPLAY
 # ──────────────────────────────────────────────
 
-func gain_xp(amount: int):
-	xp += amount
-	print("[Player] Gained %d XP (total: %d / %d)" % [amount, xp, xp_to_next_level])
-	while xp >= xp_to_next_level:
-		xp -= xp_to_next_level
-		_level_up()
+func sync_campaign_progression(cm):
+	if cm == null or not cm.has_active_campaign:
+		return
+	level = cm.player_level
+	xp = cm.player_xp
+	xp_to_next_level = cm.player_xp_to_next
 	if ui:
 		ui.update_xp(level, xp, xp_to_next_level)
-
-func _level_up():
-	level += 1
-	xp_to_next_level = int(XP_PER_LEVEL_BASE * pow(XP_SCALE_FACTOR, level - 1))
-	# Small stat bonus per level
-	max_hp += 3
-	hp = min(hp + 3, max_hp)
-	max_mp += 2
-	print("[Player] LEVEL UP → Level %d! Next level at %d XP" % [level, xp_to_next_level])
-	_trigger_skill_offer()
-
-func _trigger_skill_offer():
-	if not element_db:
-		return
-	var offers = element_db.get_skill_offers(element, unlocked_abilities, level)
-	if offers.is_empty():
-		print("[Player] No new skills available to offer.")
-		return
-	print("[Player] Skill offers: ", offers)
-	if ui:
-		ui.show_skill_offer(offers, element_db)
-	else:
-		# Fallback: auto-pick first offer
-		_unlock_ability(offers[0])
-		print("[Player] Auto-unlocked: ", offers[0])
-
-func accept_skill_offer(key: String):
-	_unlock_ability(key)
-	print("[Player] Unlocked skill: %s" % key)
-	if ui:
-		ui.update_abilities(equipped_abilities, element_db)
 
 # ──────────────────────────────────────────────
 #  DAMAGE / HEALING / STATUS
@@ -247,10 +215,13 @@ func get_ability_variation_info(key: String) -> Dictionary:
 		"name": key,
 		"form_key": "",
 		"range_override": -1,
+		"range_band": "mid",
 		"shape": "cardinal",
 		"dmg_mult": 1.0,
 		"mp_mult": 1.0,
-		"effect": ""
+		"effect": "",
+		"terrain_kind": "",
+		"terrain_duration": 0
 	}
 	var edata = element_db
 	if not edata and is_inside_tree():
@@ -306,15 +277,19 @@ func get_ability_variation_info(key: String) -> Dictionary:
 			res["form_key"] = first_k
 
 	res["name"] = f_info.get("name", ab.get("name", norm_key))
-	res["range_override"] = f_info.get("range", ab.get("range", 2))
+	res["range_override"] = AbilityGeometryScript.effective_reach(str(res["name"]), int(f_info.get("range", ab.get("range", 2))))
+	res["range_band"] = AbilityGeometryScript.preferred_band(str(res["name"]), int(res["range_override"]))
 	res["dmg_mult"] = f_info.get("dmg_mult", 1.0)
 	res["mp_mult"] = f_info.get("mp_mult", 1.0)
 	res["effect"] = f_info.get("effect", ab.get("effect", ""))
+	res["terrain_kind"] = f_info.get("terrain_kind", ab.get("terrain_kind", ""))
+	res["terrain_duration"] = f_info.get("terrain_duration", ab.get("terrain_duration", 0))
 	res["shape"] = f_info.get("shape", "cardinal")
 	if f_info.get("is_radial", false):
 		res["shape"] = "radial"
 	elif f_info.get("desc", "").to_lower().contains("linear") or f_info.get("desc", "").to_lower().contains("forward"):
 		res["shape"] = "linear_front"
+	res["shape"] = AbilityGeometryScript.shape_for(str(res["name"]), str(res["shape"]))
 	return res
 
 func cycle_skill_form(slot_index: int):
@@ -494,6 +469,8 @@ func apply_knockback(source_pos: Vector2, distance_tiles: int = 1) -> bool:
 		return true
 
 func take_damage(amount: int, attacker_pos: Vector2 = Vector2.ZERO, attacker_dex: int = 20, skill_acc: int = 90, is_unavoidable: bool = false, attacker_node: Node2D = null, skill_elem: String = ""):
+	if hp <= 0 or amount <= 0:
+		return 0
 	var final_amount = amount
 	var hit_angle = "front"
 
@@ -597,6 +574,8 @@ func apply_status(effect_name: String, duration: int, value: float = 0.0):
 func tick_status_effects():
 	var remaining = []
 	for s in status_effects:
+		if hp <= 0:
+			break
 		if s.get("duration", 0) > 0:
 			# Apply DoT effects
 			if s["name"] == "burn":
@@ -629,16 +608,17 @@ func equip_artifact(artifact_dict: Dictionary):
 	print("[Player] Artifact equipped: %s (%d charges)" % [artifact.get("name","?"), artifact_charges])
 
 func use_artifact():
+	if not _can_take_action(true):
+		return
 	if artifact.is_empty() or artifact_charges <= 0:
 		print("[Player] No artifact or no charges.")
 		return
 	# Artifact costs ZERO MP per GDD — emergency tool
-	artifact_charges -= 1
 	var key = artifact.get("ability_key", "")
-	print("[Player] Artifact fired: %s (charges left: %d)" % [artifact.get("name","?"), artifact_charges])
 	if key != "" and element_db and element_db.ABILITIES.has(key):
 		var ability = element_db.ABILITIES[key]
-		_execute_ability(ability)
+		if await _execute_ability(ability):
+			artifact_charges -= 1
 	if ui:
 		ui.update_artifact(artifact, artifact_charges)
 
@@ -653,8 +633,19 @@ func is_active_unit() -> bool:
 		return battle_manager.active_player_unit == self
 	return true
 
+func _can_take_action(attack_only: bool = false) -> bool:
+	if is_animating or hp <= 0 or has_acted or not is_active_unit():
+		return false
+	if battle_manager == null:
+		return true
+	if battle_manager.current_state not in [battle_manager.State.PLAYER_MOVE, battle_manager.State.PLAYER_ACT]:
+		return false
+	if attack_only and battle_manager.current_state != battle_manager.State.PLAYER_ACT:
+		return false
+	return true
+
 func _unhandled_input(event):
-	if is_animating or battle_manager == null or not is_active_unit():
+	if not _can_take_action() or battle_manager == null:
 		return
 
 	# Right click advances to next phase anywhere on screen
@@ -718,7 +709,7 @@ func _unhandled_input(event):
 			end_turn()
 
 func on_right_mouse_clicked():
-	if is_animating or battle_manager == null or not is_active_unit():
+	if not _can_take_action() or battle_manager == null:
 		return
 	if battle_manager.current_state == battle_manager.State.PLAYER_MOVE:
 		print("[Player] Right-clicked: ending movement phase.")
@@ -772,11 +763,11 @@ func get_all_enemies() -> Array:
 	if is_inside_tree():
 		var group_nodes = get_tree().get_nodes_in_group("enemies")
 		for n in group_nodes:
-			if is_instance_valid(n) and n != self:
+			if is_instance_valid(n) and n != self and not n.is_queued_for_deletion() and ("hp" not in n or n.hp > 0):
 				list.append(n)
 	if list.is_empty() and get_parent():
 		var enemy = get_parent().get_node_or_null("Enemy")
-		if enemy and is_instance_valid(enemy):
+		if enemy and is_instance_valid(enemy) and not enemy.is_queued_for_deletion() and ("hp" not in enemy or enemy.hp > 0):
 			list.append(enemy)
 	return list
 
@@ -803,7 +794,7 @@ func get_hovered_enemy(override_mouse_pos: Vector2 = Vector2.INF) -> Node2D:
 	return null
 
 func _process(_delta):
-	if is_animating or not is_active_unit():
+	if not _can_take_action():
 		return
 	var target_enemy: Node2D = get_hovered_enemy()
 	if target_enemy == null:
@@ -817,24 +808,27 @@ func _process(_delta):
 
 
 func on_move_tile_clicked(target_tile: Vector2i, distance: int):
-	if is_animating or battle_manager == null or battle_manager.current_state != battle_manager.State.PLAYER_MOVE or not is_active_unit():
+	if not _can_take_action() or battle_manager == null or battle_manager.current_state != battle_manager.State.PLAYER_MOVE:
+		return
+	if distance <= 0 or distance > moves_remaining:
+		return
+	if grid_overlay and grid_overlay.valid_move_tiles.get(target_tile, -1) != distance:
 		return
 
-	var target_pos = Vector2(target_tile.x * TILE_SIZE + TILE_SIZE * 0.5, target_tile.y * TILE_SIZE + TILE_SIZE * 0.5)
-	var delta = target_pos - position
-
-	# Face movement direction (Left, Right, Front, or Back)
-	_update_facing_direction(delta)
-
-	# Snappy movement directly to the center of clicked square
-	position = target_pos
+	var path: Array[Vector2i] = grid_overlay.get_move_path(target_tile) if grid_overlay else [target_tile]
+	if path.is_empty():
+		return
+	is_animating = true
+	if grid_overlay: grid_overlay.clear_grid()
 	moves_remaining -= distance
 	moves_remaining = max(0, moves_remaining)
 	spend_stamina(distance * stamina_cost_per_tile)
 	tiles_moved_this_turn += distance
-
-	# Cycle walk frames (F18) - await so movement finishes before transitioning phases
-	await _play_walk_cycle(facing_frame)
+	for step_tile in path:
+		var step_pos := Vector2(step_tile.x * TILE_SIZE + TILE_SIZE * 0.5, step_tile.y * TILE_SIZE + TILE_SIZE * 0.5)
+		_update_facing_direction(step_pos - position)
+		await _play_walk_cycle(facing_frame, step_pos)
+	is_animating = false
 
 	print("[Player] Moved %d tiles via mouse → %d moves remaining" % [distance, moves_remaining])
 
@@ -847,10 +841,12 @@ func on_move_tile_clicked(target_tile: Vector2i, distance: int):
 	else:
 		end_move_phase()
 
-func _play_walk_cycle(base_frame: int):
+func _play_walk_cycle(base_frame: int, target_pos: Vector2):
+	var tween := create_tween()
+	tween.tween_property(self, "position", target_pos, 0.32)
 	if sprite == null:
+		if tween.is_running(): await tween.finished
 		return
-	is_animating = true
 	if tex_walk:
 		sprite.texture = tex_walk
 	sprite.hframes = 4
@@ -860,13 +856,15 @@ func _play_walk_cycle(base_frame: int):
 	for i in range(4):
 		if sprite:
 			sprite.frame = base_frame + i
-		await get_tree().create_timer(0.04).timeout
-	is_animating = false
+		await get_tree().create_timer(0.08).timeout
+	if tween.is_running(): await tween.finished
 	if sprite:
 		sprite.frame = facing_frame
 		sprite.offset = Vector2(0, -6)
 
 func end_move_phase():
+	if not _can_take_action() or (battle_manager and battle_manager.current_state != battle_manager.State.PLAYER_MOVE):
+		return
 	if tiles_moved_this_turn == 0:
 		recover_stamina(int(max_stamina * 0.15))
 		if ui:
@@ -887,7 +885,7 @@ func on_enemy_turn():
 		grid_overlay.clear_grid()
 
 func select_ability(idx: int):
-	if idx < equipped_abilities.size():
+	if idx >= 0 and idx < equipped_abilities.size():
 		selected_ability_index = idx
 		var key = equipped_abilities[idx]
 		if element_db and element_db.ABILITIES.has(key):
@@ -918,9 +916,11 @@ func _update_attack_range_display():
 			var eff_range = var_info["range_override"] if var_info["range_override"] > 0 else ab["range"]
 			var shape = var_info["shape"]
 			grid_overlay.show_attack_grid(position, eff_range, shape, get_facing_direction())
+			if selected_ability_is_support():
+				grid_overlay.valid_attack_tiles.append(Vector2i(floor(position / TILE_SIZE)))
 
 func on_attack_tile_clicked(target_tile: Vector2i):
-	if is_animating or battle_manager == null or battle_manager.current_state != battle_manager.State.PLAYER_ACT or not is_active_unit():
+	if not _can_take_action(true) or battle_manager == null:
 		return
 
 	# Face towards clicked tile
@@ -930,7 +930,7 @@ func on_attack_tile_clicked(target_tile: Vector2i):
 		_update_facing_direction(diff)
 		_update_attack_range_display()
 
-	if selected_ability_index >= equipped_abilities.size():
+	if selected_ability_index < 0 or selected_ability_index >= equipped_abilities.size() or not element_db:
 		return
 	var key = equipped_abilities[selected_ability_index]
 	var ab = element_db.ABILITIES.get(key, {})
@@ -939,7 +939,7 @@ func on_attack_tile_clicked(target_tile: Vector2i):
 	var base_dmg = int(round(ab.get("damage", 0) * var_info.get("dmg_mult", 1.0)))
 
 	# Check if this ability is a self-buff, heal, or support skill
-	var is_support = (effect in ["dodge_buff", "evasion", "defense_buff", "guard", "heal", "cleanse"] or base_dmg <= 0)
+	var is_support = _is_support_ability(base_dmg, effect)
 
 	# Use group lookup so multiple enemies are supported
 	var all_enemies = get_all_enemies()
@@ -967,6 +967,8 @@ func on_attack_tile_clicked(target_tile: Vector2i):
 	elif is_support:
 		# Clicking anywhere valid triggers support / self-buff
 		use_ability(selected_ability_index, self)
+	elif str(var_info.get("terrain_kind", "")) != "" or (battle_manager.terrain and battle_manager.terrain.has_wall(target_tile)):
+		use_ability(selected_ability_index, null, target_tile)
 	else:
 		if ui:
 			ui.log_action("Click on the enemy TARGET square to strike!")
@@ -975,12 +977,11 @@ func on_attack_tile_clicked(target_tile: Vector2i):
 #  ABILITIES
 # ──────────────────────────────────────────────
 
-func use_ability(slot_index: int, target: Node2D = null):
-	if is_animating:
-		print("[Player] Busy animating, cannot use ability.")
+func use_ability(slot_index: int, target: Node2D = null, aimed_tile: Vector2i = Vector2i(-1, -1)):
+	if not _can_take_action(true):
 		return
 
-	if slot_index >= equipped_abilities.size():
+	if slot_index < 0 or slot_index >= equipped_abilities.size():
 		print("[Player] No ability in slot %d." % slot_index)
 		return
 
@@ -993,71 +994,84 @@ func use_ability(slot_index: int, target: Node2D = null):
 		return
 
 	var ability = element_db.ABILITIES[key]
+	var cost = int(round(ability["mp_cost"] * get_ability_variation_info(key).get("mp_mult", 1.0)))
+	await _execute_ability(ability, target, cost, aimed_tile)
 
-	if not spend_mp(ability["mp_cost"]):
-		print("[Player] Not enough MP for %s (need %d, have %d)" % [ability["name"], ability["mp_cost"], mp])
-		if ui:
-			ui.log_action("Not enough MP for %s!" % ability["name"])
-		return
+func selected_ability_is_support() -> bool:
+	if not element_db or selected_ability_index < 0 or selected_ability_index >= equipped_abilities.size():
+		return false
+	var key = equipped_abilities[selected_ability_index]
+	var ability = element_db.ABILITIES.get(key, {})
+	var variation = get_ability_variation_info(key)
+	var damage = int(round(ability.get("damage", 0) * variation.get("dmg_mult", 1.0)))
+	return _is_support_ability(damage, variation.get("effect", ability.get("effect", "")))
 
-	await _execute_ability(ability, target)
+func _is_support_ability(damage: int, effect: String) -> bool:
+	return effect in ["dodge_buff", "evasion", "defense_buff", "armor_buff", "guard", "heal", "cleanse", "anchor"] or damage <= 0
 
-func _execute_ability(ability: Dictionary, target: Node2D = null):
+func _execute_ability(ability: Dictionary, target: Node2D = null, mp_cost: int = 0, aimed_tile: Vector2i = Vector2i(-1, -1)) -> bool:
 	var key = ability.get("key", ability.get("name", "").replace(" ", "_"))
 	var var_info = get_ability_variation_info(key)
 	var eff_r = var_info["range_override"] if var_info["range_override"] > 0 else ability.get("range", 2)
 	var effect = var_info.get("effect", ability.get("effect", ""))
 	var base_damage = int(round(ability.get("damage", 0) * var_info.get("dmg_mult", 1.0)))
-	var is_support = (effect in ["dodge_buff", "evasion", "defense_buff", "guard", "heal", "cleanse"] or base_damage <= 0)
+	var is_support = _is_support_ability(base_damage, effect)
 
 	var target_node = target
-	if target_node == null or not is_instance_valid(target_node):
+	if (target_node == null or not is_instance_valid(target_node)) and aimed_tile.x < 0:
 		if is_support:
 			target_node = self
 		else:
 			target_node = get_closest_enemy()
 
-	if target_node == null:
+	if target_node == null and aimed_tile.x < 0:
 		print("[Player] No target.")
-		return
+		return false
+	if target_node != null and (target_node.is_queued_for_deletion() or ("hp" in target_node and target_node.hp <= 0)):
+		return false
+	var target_is_ally = target_node != null and (target_node == self or target_node.is_in_group("players"))
+	if target_node != null and is_support != target_is_ally:
+		if ui:
+			ui.log_action("Choose an ally for support or an enemy for an attack.")
+		return false
 
-	var diff = target_node.position - position
+	var target_pos: Vector2 = target_node.position if target_node != null else Vector2(aimed_tile.x * TILE_SIZE + TILE_SIZE * 0.5, aimed_tile.y * TILE_SIZE + TILE_SIZE * 0.5)
+	var diff = target_pos - position
 	if diff.length_squared() > 1.0:
 		_update_facing_direction(diff)
 
 	var distance = (abs(diff.x) + abs(diff.y)) / TILE_SIZE
-	var target_tile = Vector2i(int(floor(target_node.position.x / TILE_SIZE)), int(floor(target_node.position.y / TILE_SIZE)))
-
-	var in_range = false
+	# Validate this skill's geometry, independent of a previously displayed grid.
+	var shape: String = AbilityGeometryScript.shape_for(str(var_info.get("name", ability.get("name", ""))), str(var_info.get("shape", "cardinal")))
+	var origin_tile: Vector2i = AbilityGeometryScript.tile_of(position)
+	var target_tile: Vector2i = AbilityGeometryScript.tile_of(target_pos)
+	var affected_tiles: Array[Vector2i] = AbilityGeometryScript.tiles(origin_tile, get_facing_direction(), eff_r, shape)
+	var in_range = affected_tiles.has(target_tile)
 	if target_node == self:
-		in_range = true
-	elif grid_overlay and not grid_overlay.valid_attack_tiles.is_empty():
-		in_range = grid_overlay.valid_attack_tiles.has(target_tile)
-	else:
-		in_range = (distance <= eff_r)
+		in_range = is_support
 
 	if not in_range:
 		print("[Player] %s out of range (dist: %.0f, range: %d)" % [ability["name"], distance, eff_r])
-		# Refund MP — don't end the turn so the player can try something else
-		mp = min(mp + ability["mp_cost"], max_mp)
 		if ui:
-			ui.update_player_stats(hp, max_hp, mp, max_mp, stamina, max_stamina)
 			ui.log_action("%s — out of range! (need target on valid attack square)" % [ability["name"]])
-		return
+		return false
+	if target_node != null and target_node != self and battle_manager and battle_manager.terrain and battle_manager.terrain.blocks_line(origin_tile, target_tile):
+		if ui: ui.log_action("A stone wall blocks this attack. Break the wall first.")
+		return false
+	# Pay only after validation. Artifacts pass zero cost and cannot create MP refunds.
+	if not spend_mp(mp_cost):
+		if ui:
+			ui.log_action("Not enough MP for %s!" % ability["name"])
+		return false
 
 	# Play attack animation facing target
-	await _play_attack_anim(ability, target_node.position)
+	await _play_attack_anim(ability, target_pos)
 
 	var damage = base_damage
 
-	# Distance Damage Falloff
-	if damage > 0 and distance > 2:
-		var falloff = ability.get("falloff_per_tile", 0.08) * (distance - 2)
-		damage = int(round(damage * clamp(1.0 - falloff, 0.40, 1.0)))
-
 	# Resonance Gauge Buff (+20% damage if gauge was full)
 	var resonance_active = false
-	if battle_manager and battle_manager.has_method("consume_resonance_buff"):
+	if damage > 0 and not is_support and battle_manager and battle_manager.has_method("consume_resonance_buff"):
 		resonance_active = battle_manager.consume_resonance_buff()
 	if resonance_active and damage > 0:
 		damage = int(round(damage * 1.20))
@@ -1065,32 +1079,68 @@ func _execute_ability(ability: Dictionary, target: Node2D = null):
 			ui.log_action("⚡ RESONANCE BURST! +20% Damage!")
 
 	var ab_elem = ability.get("element", element)
-	if damage > 0 and target_node != self:
-		target_node.take_damage(damage, position, dexterity, ability.get("accuracy", 90), false, self, ab_elem)
+	var hit_landed = true
+	if damage > 0 and not is_support:
+		var targets: Array = [target_node] if target_node != null else []
+		if AbilityGeometryScript.is_multi_target(shape, str(var_info.get("name", ""))):
+			for other in get_all_enemies():
+				if other != target_node and affected_tiles.has(AbilityGeometryScript.tile_of(other.position)):
+					targets.append(other)
+		var total_damage := 0
+		var any_hit := false
+		for victim in targets:
+			if not is_instance_valid(victim) or victim.is_queued_for_deletion() or ("hp" in victim and victim.hp <= 0):
+				continue
+			if battle_manager and battle_manager.terrain and battle_manager.terrain.blocks_line(origin_tile, AbilityGeometryScript.tile_of(victim.position)):
+				continue
+			var accuracy: int = int(ability.get("accuracy", 90))
+			if battle_manager and battle_manager.terrain:
+				accuracy -= battle_manager.terrain.accuracy_penalty(origin_tile, AbilityGeometryScript.tile_of(victim.position))
+			var victim_tile: Vector2i = AbilityGeometryScript.tile_of(victim.position)
+			var victim_distance: int = absi(victim_tile.x - origin_tile.x) + absi(victim_tile.y - origin_tile.y)
+			var range_damage: int = int(round(damage * AbilityGeometryScript.range_multiplier(str(var_info.get("range_band", "mid")), victim_distance)))
+			var dealt: int = victim.take_damage(range_damage, position, dexterity, accuracy, false, self, ab_elem)
+			total_damage += dealt
+			if dealt > 0:
+				any_hit = true
+				if effect != "" and effect != "heal" and victim.has_method("apply_status") and ("hp" not in victim or victim.hp > 0):
+					victim.apply_status(effect, 2, 0.0)
+				if effect == "knockback" and victim.has_method("apply_knockback") and ("hp" not in victim or victim.hp > 0):
+					victim.apply_knockback(position, 1)
+		damage = total_damage
+		hit_landed = any_hit
 	elif damage < 0 or effect == "heal":
 		var heal_amt = abs(damage) if damage != 0 else 30
 		if target_node.has_method("heal"):
 			target_node.heal(heal_amt)
 		else:
 			heal(heal_amt)
+	if battle_manager and battle_manager.terrain:
+		battle_manager.terrain.react_to_attack(ab_elem, affected_tiles, maxi(0, base_damage))
+		var terrain_kind: String = var_info.get("terrain_kind", "")
+		if terrain_kind != "":
+			battle_manager.terrain.place_from_skill(terrain_kind, origin_tile, target_tile, eff_r, shape, int(var_info.get("terrain_duration", 2)))
+			hit_landed = true
 
 	# Apply buffs to self or ally if defensive/support
 	if effect in ["dodge_buff", "evasion"]:
-		apply_status("evasion", 2, 0.40)
+		target_node.apply_status("evasion", 2, 0.40)
 		if ui and ui.has_method("spawn_damage_popup"):
 			ui.spawn_damage_popup(position, "+40% DODGE EVASION", "status")
-	elif effect in ["defense_buff", "guard"]:
-		apply_status("defense_buff", 2, 10.0)
+	elif effect in ["defense_buff", "armor_buff", "guard"]:
+		target_node.apply_status("defense_buff", 2, 10.0)
 		if ui and ui.has_method("spawn_damage_popup"):
 			ui.spawn_damage_popup(position, "+DEFENSE PLATING", "status")
-	elif effect != "" and effect != "heal" and target_node != self and target_node.has_method("apply_status"):
+	elif effect == "cleanse" and "status_effects" in target_node:
+		target_node.status_effects = target_node.status_effects.filter(func(s): return s.get("name", "") in ["evasion", "defense_buff", "armor_buff", "guard", "barrier", "anchor"])
+	elif is_support and effect != "" and effect != "heal" and hit_landed and target_node.has_method("apply_status") and ("hp" not in target_node or target_node.hp > 0):
 		target_node.apply_status(effect, 2, 0.0)
 
-	if effect == "knockback" and target_node != self and target_node.has_method("apply_knockback"):
+	if is_support and hit_landed and effect == "knockback" and target_node != self and target_node.has_method("apply_knockback") and ("hp" not in target_node or target_node.hp > 0):
 		target_node.apply_knockback(position, 1)
 
 	# Register elemental action for Resonance & Fusion
-	if battle_manager and battle_manager.has_method("register_elemental_action"):
+	if hit_landed and battle_manager and battle_manager.has_method("register_elemental_action"):
 		battle_manager.register_elemental_action(self, ab_elem, target_node if target_node != self else null)
 
 	print("[Player] Used: %s | Dmg: %d | Effect: %s | MP: %d/%d" % [ability["name"], damage, effect, mp, max_mp])
@@ -1098,8 +1148,14 @@ func _execute_ability(ability: Dictionary, target: Node2D = null):
 		if is_support:
 			ui.log_action("[You] %s activated!" % [ability["name"]])
 		else:
-			ui.log_action("[You] %s → %d dmg" % [ability["name"], max(0, damage)])
+			var band: String = var_info.get("range_band", "mid")
+			var bonus: String = " +25%% %s range" % band if AbilityGeometryScript.range_multiplier(band, int(distance)) > 1.0 else ""
+			ui.log_action("[You] %s → %d dmg%s" % [var_info.get("name", ability["name"]), max(0, damage), bonus])
+	is_animating = true
+	await get_tree().create_timer(0.20).timeout
+	is_animating = false
 	end_turn()
+	return true
 
 func _play_attack_anim(_ability: Dictionary, enemy_pos: Vector2):
 	if sprite == null:
@@ -1127,7 +1183,8 @@ func _play_attack_anim(_ability: Dictionary, enemy_pos: Vector2):
 	var base_frame = attack_row * 4
 	for i in range(4):
 		sprite.frame = base_frame + i
-		await get_tree().create_timer(0.06).timeout
+		await get_tree().create_timer(0.13).timeout
+	await get_tree().create_timer(0.12).timeout
 
 	# Return to walk texture & preserve facing direction toward target
 	if tex_walk:
@@ -1151,6 +1208,12 @@ func start_turn():
 		sprite.modulate = Color.WHITE
 	regen_mp()
 	tick_status_effects()
+	if hp <= 0:
+		moves_remaining = 0
+		has_acted = true
+		if grid_overlay:
+			grid_overlay.clear_grid()
+		return
 	moves_remaining = get_total_speed()
 	if not is_active_unit():
 		return

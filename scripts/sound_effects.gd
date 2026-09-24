@@ -10,6 +10,8 @@ const MAX_AUDIO_PLAYERS = 8
 var _players: Array[AudioStreamPlayer] = []
 var _player_idx: int = 0
 var _cache: Dictionary = {}
+# Audio variation must not consume the random rolls used by combat and rosters.
+var _rng := RandomNumberGenerator.new()
 
 func _ready():
 	_init_player_pool()
@@ -47,7 +49,7 @@ func play_sfx(sfx_name: String, volume_db: float = 0.0, pitch_scale: float = 1.0
 
 	p.stream = stream
 	p.volume_db = volume_db
-	p.pitch_scale = pitch_scale * randf_range(0.96, 1.04) # Slight organic variance
+	p.pitch_scale = pitch_scale * _rng.randf_range(0.96, 1.04) # Slight organic variance
 	p.play()
 
 func play_element_impact(elem: String, is_crit: bool = false, is_weakness: bool = false):
@@ -137,8 +139,8 @@ func _synthesize_waveform(sfx_name: String) -> AudioStreamWAV:
 				# Explosive pop + crackle noise burst
 				var pop_freq = lerp(160.0, 70.0, t)
 				var pop = sin(2.0 * PI * pop_freq * sec)
-				var noise = randf_range(-1.0, 1.0)
-				var crackle = (randf_range(-1.0, 1.0) * 0.8) if (randf() < 0.15) else 0.0
+				var noise = _rng.randf_range(-1.0, 1.0)
+				var crackle = (_rng.randf_range(-1.0, 1.0) * 0.8) if (_rng.randf() < 0.15) else 0.0
 				var env = pow(1.0 - t, 1.8)
 				val = (pop * 0.55 + noise * 0.30 + crackle * 0.15) * env
 
@@ -148,7 +150,7 @@ func _synthesize_waveform(sfx_name: String) -> AudioStreamWAV:
 				var f2 = lerp(2600.0, 1200.0, t)
 				var sine1 = sin(2.0 * PI * f1 * sec)
 				var sine2 = sin(2.0 * PI * f2 * sec)
-				var splash = randf_range(-0.25, 0.25) * (1.0 - t)
+				var splash = _rng.randf_range(-0.25, 0.25) * (1.0 - t)
 				var env = pow(1.0 - t, 1.5)
 				val = (sine1 * 0.45 + sine2 * 0.35 + splash * 0.20) * env
 
@@ -156,7 +158,7 @@ func _synthesize_waveform(sfx_name: String) -> AudioStreamWAV:
 				# Heavy tectonic sub-bass rumble + rocky crunch
 				var rumble_freq = lerp(85.0, 38.0, t)
 				var rumble = sin(2.0 * PI * rumble_freq * sec)
-				var crunch = randf_range(-0.5, 0.5) if t < 0.45 else randf_range(-0.2, 0.2)
+				var crunch = _rng.randf_range(-0.5, 0.5) if t < 0.45 else _rng.randf_range(-0.2, 0.2)
 				var env = 1.0 - pow(t, 0.8)
 				val = (rumble * 0.65 + crunch * 0.35) * env
 
@@ -164,7 +166,7 @@ func _synthesize_waveform(sfx_name: String) -> AudioStreamWAV:
 				# Whipping blade slice & accelerating whoosh
 				var sweep_freq = 400.0 + 800.0 * sin(PI * t)
 				var sine = sin(2.0 * PI * sweep_freq * sec)
-				var noise = randf_range(-0.5, 0.5) * sin(PI * t)
+				var noise = _rng.randf_range(-0.5, 0.5) * sin(PI * t)
 				var env = pow(1.0 - t, 1.3)
 				val = (sine * 0.35 + noise * 0.65) * env
 
@@ -173,7 +175,7 @@ func _synthesize_waveform(sfx_name: String) -> AudioStreamWAV:
 				var freq = lerp(580.0, 180.0, t)
 				var phase = fmod(sec * freq, 1.0)
 				var sqr = 1.0 if phase > 0.48 else -1.0
-				var zap_noise = randf_range(-0.4, 0.4)
+				var zap_noise = _rng.randf_range(-0.4, 0.4)
 				var env = pow(1.0 - t, 2.0)
 				val = (sqr * 0.6 + zap_noise * 0.4) * env
 
@@ -204,7 +206,7 @@ func _synthesize_waveform(sfx_name: String) -> AudioStreamWAV:
 				# Heavy iron shield deflection clang
 				var clang1 = sin(2.0 * PI * 480.0 * sec)
 				var clang2 = sin(2.0 * PI * 860.0 * sec)
-				var impact = randf_range(-0.3, 0.3) if t < 0.25 else 0.0
+				var impact = _rng.randf_range(-0.3, 0.3) if t < 0.25 else 0.0
 				var env = pow(1.0 - t, 2.6)
 				val = (clang1 * 0.55 + clang2 * 0.30 + impact * 0.15) * env
 
@@ -229,7 +231,7 @@ func _synthesize_waveform(sfx_name: String) -> AudioStreamWAV:
 				# Punchy kinetic impact thud
 				var punch_freq = lerp(220.0, 50.0, t)
 				var punch = sin(2.0 * PI * punch_freq * sec)
-				var snap = randf_range(-0.35, 0.35) if t < 0.20 else 0.0
+				var snap = _rng.randf_range(-0.35, 0.35) if t < 0.20 else 0.0
 				var env = pow(1.0 - t, 2.2)
 				val = (punch * 0.70 + snap * 0.30) * env
 

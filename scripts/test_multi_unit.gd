@@ -83,7 +83,7 @@ func _init():
 	print("\n--- SUITE 3: Squad Turn Cycle & Independent Action Allowance ---")
 	# Move P0 (Ignis)
 	var p0_initial_moves = p0.moves_remaining
-	p0.on_move_tile_clicked(Vector2i(4, 4), 1)
+	await p0.on_move_tile_clicked(Vector2i(4, 4), 1)
 	check.call(p0.moves_remaining == p0_initial_moves - 1, "T3.1 Ignis moves 1 tile independently")
 	check.call(p1.moves_remaining == p1.get_total_speed(), "T3.2 Kora move allowance remains unspent and intact")
 
@@ -135,4 +135,3 @@ func _init():
 	else:
 		print("[SOME TESTS FAILED!]")
 		quit(1)
-

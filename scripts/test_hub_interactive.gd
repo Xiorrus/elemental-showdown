@@ -40,7 +40,7 @@ func _run():
 
 	# --- SUITE 2: POTENCY & STAT ALLOCATION IN-PLACE (NO CRASH) ---
 	print("\n--- SUITE 2: In-Place Stat Allocation & Potency Button Click ---")
-	var panel_stats = hub.get_node_or_null("MainTabs/TabSkills/HBox/ProfileCol/PanelStats/Margin/VB/StatAllocBox")
+	var panel_stats = hub.get_node_or_null("MainTabs/TabSkills/HBox/ProfileCol/Content/PanelStats/Margin/VB/StatAllocBox")
 	check.call(panel_stats != null, "T2.1 StatAllocBox found in Player Tab")
 
 	var row_potency = panel_stats.get_node_or_null("Row_Potency")
@@ -163,11 +163,15 @@ func _run():
 	var next_m = cm.get_next_scheduled_match()
 	check.call(not next_m.is_empty(), "T6.1 Next scheduled match loaded: %s vs %s" % [next_m.get("enemy_team"), next_m.get("enemy_captain")])
 
-	# Verify direct launch call prepares match without errors
-	cm.prepare_match("tournament", next_m.get("enemy_element", "water"), next_m.get("enemy_captain", "Nami"), next_m.get("enemy_team", "Hydro Vipers"))
-	check.call(cm.active_match_type == "tournament", "T6.2 Match prepared as 'tournament'")
-	check.call(cm.active_enemy_name == "Nami", "T6.3 Active enemy captain set to 'Nami'")
-	check.call(cm.active_enemy_team == "Hydro Vipers", "T6.4 Active enemy team set to 'Hydro Vipers'")
+	# League fixtures vary by season, so verify the prepared opponent against the calendar.
+	var scheduled_type = str(next_m.get("match_type", ""))
+	var scheduled_element = str(next_m.get("enemy_element", ""))
+	var scheduled_captain = str(next_m.get("enemy_captain", ""))
+	var scheduled_team = str(next_m.get("enemy_team", ""))
+	cm.prepare_match(scheduled_type, scheduled_element, scheduled_captain, scheduled_team)
+	check.call(not scheduled_type.is_empty() and cm.active_match_type == scheduled_type, "T6.2 Match uses its scheduled competition type")
+	check.call(not scheduled_captain.is_empty() and not scheduled_element.is_empty() and cm.active_enemy_name == scheduled_captain and cm.active_enemy_element == scheduled_element, "T6.3 Active enemy captain and element match the fixture")
+	check.call(not scheduled_team.is_empty() and cm.active_enemy_team == scheduled_team, "T6.4 Active enemy club matches the fixture")
 
 	hub.queue_free()
 	await process_frame

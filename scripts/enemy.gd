@@ -1,4 +1,5 @@
 extends CharacterBody2D
+const AbilityGeometryScript = preload("res://scripts/ability_geometry.gd")
 
 # ──────────────────────────────────────────────
 #  ELEMENTAL SHOWDOWN — Enemy
@@ -26,6 +27,7 @@ var is_braced_guard: bool = false
 
 # Loaded from ElementData at _ready
 var ability_pool: Array = []        # Array of ability dicts
+var _planned_position_score: float = -99999.0
 var status_effects: Array = []
 
 var tex_walk: Texture2D = null
@@ -94,17 +96,53 @@ func apply_element_stats(elem: String = ""):
 		stamina     = max_stamina
 		moves_remaining = base_speed
 
-		# Load the first 4 basic abilities for this enemy
+		# Give AI access to each unlocked form. Forms are distinct tactical options:
+		# a melee strike, a ranged line, or an area attack can share one skill.
 		ability_pool.clear()
 		var keys = edata.get("skill_pool", [])
+		var loaded_skills := 0
 		for key in keys:
 			if element_db.ABILITIES.has(key):
 				var ab = element_db.ABILITIES[key].duplicate()
 				ab["key"] = key
 				if ab["tier"] == "basic" or ab["tier"] == "advanced":
-					ability_pool.append(ab)
-				if ability_pool.size() >= 4:
-					break
+					var forms: Dictionary = ab.get("forms", {})
+					if forms.is_empty():
+						ability_pool.append(ab)
+					else:
+						for form in forms.values():
+							var option: Dictionary = ab.duplicate(true)
+							option["name"] = form.get("name", ab["name"])
+							option["range"] = AbilityGeometryScript.effective_reach(str(option["name"]), int(form.get("range", ab["range"])))
+							option["range_band"] = AbilityGeometryScript.preferred_band(str(option["name"]), int(option["range"]))
+							option["damage"] = int(round(ab.get("damage", 0) * form.get("dmg_mult", 1.0)))
+							option["mp_cost"] = int(round(ab.get("mp_cost", 0) * form.get("mp_mult", 1.0)))
+							option["effect"] = form.get("effect", ab.get("effect", ""))
+							option["shape"] = AbilityGeometryScript.shape_for(option["name"], form.get("shape", "cardinal"))
+							option["terrain_kind"] = form.get("terrain_kind", "")
+							option["terrain_duration"] = form.get("terrain_duration", 0)
+							ability_pool.append(option)
+					loaded_skills += 1
+			if loaded_skills >= 4:
+				break
+
+func apply_career_scaling(division_tier: int, season_number: int) -> void:
+	# Reapply only after apply_element_stats: that method resets elemental bases.
+	# Division matters most; later seasons add gradual growth with a firm cap.
+	var tier_bonus := maxi(0, division_tier - 1)
+	var season_bonus := mini(8, maxi(0, season_number - 1))
+	var hp_factor := 1.0 + tier_bonus * 0.10 + season_bonus * 0.025
+	var damage_factor := 1.0 + tier_bonus * 0.08 + season_bonus * 0.02
+	max_hp = int(round(max_hp * hp_factor))
+	hp = max_hp
+	max_mp = int(round(max_mp * (1.0 + tier_bonus * 0.06 + season_bonus * 0.015)))
+	mp = max_mp
+	defense += tier_bonus * 2 + int(season_bonus / 2)
+	agility += tier_bonus * 2 + season_bonus
+	dexterity += tier_bonus * 2 + season_bonus
+	for ability in ability_pool:
+		if ability.has("damage") and int(ability["damage"]) > 0:
+			ability["damage"] = int(round(int(ability["damage"]) * damage_factor))
 
 # ──────────────────────────────────────────────
 #  DAMAGE / STATUS
@@ -236,6 +274,8 @@ func apply_knockback(source_pos: Vector2, distance_tiles: int = 1) -> bool:
 		return true
 
 func take_damage(amount: int, attacker_pos: Vector2 = Vector2.ZERO, attacker_dex: int = 20, skill_acc: int = 90, is_unavoidable: bool = false, attacker_node: Node2D = null, skill_elem: String = ""):
+	if hp <= 0 or is_queued_for_deletion() or amount <= 0:
+		return 0
 	var final_amount = amount
 	var hit_angle = "front"
 
@@ -298,11 +338,6 @@ func take_damage(amount: int, attacker_pos: Vector2 = Vector2.ZERO, attacker_dex
 			ui.trigger_hit_stop(60.0)
 		if battle_manager and battle_manager.has_method("record_knockout"):
 			battle_manager.record_knockout(self)
-		# Award XP to player
-		var p = player if player else get_closest_player_target()
-		if p and p.has_method("gain_xp"):
-			p.gain_xp(40 + (base_speed * 5))
-
 		# Check if all enemies defeated
 		var remaining = []
 		if is_inside_tree():
@@ -319,7 +354,7 @@ func take_damage(amount: int, attacker_pos: Vector2 = Vector2.ZERO, attacker_dex
 				battle_manager.enemy = remaining[0]
 
 		queue_free()
-	return amount
+	return final_amount
 
 func heal(amount: int):
 	hp = min(hp + amount, max_hp)
@@ -346,6 +381,8 @@ func has_status(effect_name: String) -> bool:
 func tick_status_effects():
 	var remaining = []
 	for s in status_effects:
+		if hp <= 0:
+			break
 		if s.get("duration", 0) > 0:
 			# Apply DoT effects while active
 			if s["name"] == "burn":
@@ -372,25 +409,15 @@ func take_turn():
 	moves_remaining = base_speed
 
 	var target_player = get_best_tactical_target()
-	if target_player != null:
-		var diff = target_player.position - position
-		var distance = (abs(diff.x) + abs(diff.y)) / TILE_SIZE
-		var can_reach = false
-		var optimal_spacing = false
-		for ability in ability_pool:
-			var rng = ability.get("range", 0)
-			if distance <= rng and mp >= ability.get("mp_cost", 0):
-				can_reach = true
-				if rng >= 3 and distance >= 2:
-					optimal_spacing = true
-				break
-		if can_reach and (optimal_spacing or distance <= 2):
-			print("[Enemy] Target within ability range (dist: %.0f) — holding tactical spacing." % distance)
-			_act()
-			return
-
-	print("[Enemy] Taking turn — moving toward player.")
-	_move_toward_player()
+	if target_player == null:
+		_end_turn()
+		return
+	var current_score: float = float(_best_attack_from(AbilityGeometryScript.tile_of(position)).get("score", 0.0))
+	var step: Vector2i = _best_tactical_step(target_player, [])
+	if current_score > 0.0 and (step.x < 0 or _planned_position_score <= current_score * 1.05 + 1.0):
+		await _act()
+		return
+	await _move_toward_player()
 
 func get_player_targets() -> Array:
 	var targets: Array = []
@@ -443,27 +470,73 @@ func get_best_tactical_target() -> Node2D:
 
 	return best_target if best_target else targets[0]
 
+func _targets_for_ability(ability: Dictionary, aimed_at: Node2D) -> Array:
+	return _targets_for_ability_from(AbilityGeometryScript.tile_of(position), ability, aimed_at)
+
+func _targets_for_ability_from(origin: Vector2i, ability: Dictionary, aimed_at: Node2D) -> Array:
+	if aimed_at == null or not is_instance_valid(aimed_at): return []
+	var aim: Vector2i = AbilityGeometryScript.tile_of(aimed_at.position)
+	var facing: Vector2i = AbilityGeometryScript.direction_to(origin, aim)
+	var shape: String = ability.get("shape", "cardinal")
+	var tiles: Array[Vector2i] = AbilityGeometryScript.tiles(origin, facing, int(ability.get("range", 1)), shape)
+	if not tiles.has(aim): return []
+	if battle_manager and battle_manager.terrain and battle_manager.terrain.blocks_line(origin, aim): return []
+	if not AbilityGeometryScript.is_multi_target(shape, str(ability.get("name", ""))): return [aimed_at]
+	var victims: Array = []
+	for fighter in get_player_targets():
+		if tiles.has(AbilityGeometryScript.tile_of(fighter.position)) and not (battle_manager and battle_manager.terrain and battle_manager.terrain.blocks_line(origin, AbilityGeometryScript.tile_of(fighter.position))):
+			victims.append(fighter)
+	return victims
+
+func _expected_damage_from(tile: Vector2i, ability: Dictionary, victim: Node2D) -> float:
+	var target_tile: Vector2i = AbilityGeometryScript.tile_of(victim.position)
+	var distance: int = absi(tile.x - target_tile.x) + absi(tile.y - target_tile.y)
+	var band: String = ability.get("range_band", AbilityGeometryScript.preferred_band(str(ability.get("name", "")), int(ability.get("range", 1))))
+	var damage: float = float(ability.get("damage", 0)) * AbilityGeometryScript.range_multiplier(band, distance)
+	if "element" in victim and element_db and element_db.has_method("get_elemental_multiplier"):
+		damage *= float(element_db.get_elemental_multiplier(ability.get("element", element), victim.element))
+	var facing := Vector2.LEFT
+	if victim.has_method("get_facing_vector"): facing = victim.get_facing_vector()
+	var attacker_pos := Vector2(tile.x * TILE_SIZE + TILE_SIZE / 2, tile.y * TILE_SIZE + TILE_SIZE / 2)
+	var angle: float = facing.dot((attacker_pos - victim.position).normalized())
+	var evasion_factor := 1.0 if angle > 0.35 else (0.5 if angle >= -0.35 else 0.05)
+	if angle < -0.35: damage *= 1.35
+	if angle > 0.35 and "is_braced_guard" in victim and victim.is_braced_guard: damage *= 0.65
+	var agility_value: float = float(victim.agility) if "agility" in victim else 24.0
+	var accuracy: float = float(ability.get("accuracy", 90))
+	if battle_manager and battle_manager.terrain:
+		accuracy -= battle_manager.terrain.accuracy_penalty(tile, target_tile)
+	var hit_chance: float = clampf((accuracy + float(dexterity) * 0.75 - agility_value * evasion_factor) / 100.0, 0.10, 1.0)
+	return damage * hit_chance
+
+func _best_attack_from(tile: Vector2i) -> Dictionary:
+	var best: Dictionary = {}
+	for target in get_player_targets():
+		for ability in ability_pool:
+			if int(ability.get("damage", 0)) <= 0 or mp < int(ability.get("mp_cost", 0)): continue
+			var victims: Array = _targets_for_ability_from(tile, ability, target)
+			if not victims.has(target): continue
+			var score := 0.0
+			for victim in victims:
+				score += _expected_damage_from(tile, ability, victim)
+			if ability.get("effect", "") in ["stun", "freeze", "control", "blind", "knockback"]:
+				score += 8.0
+			if score > float(best.get("score", -1.0)):
+				best = {"ability": ability, "target": target, "score": score}
+	return best
+
 func _find_lethal_action() -> Dictionary:
 	var targets = get_player_targets()
 	var candidates: Array = []
 
 	for target in targets:
 		var target_hp = target.hp if "hp" in target else 9999
-		var diff = target.position - position
-		var distance_to_target = (abs(diff.x) + abs(diff.y)) / TILE_SIZE
-
 		for ability in ability_pool:
 			var cost: int = ability.get("mp_cost", 0)
-			var rng: int = ability.get("range", 0)
-			var dmg: int = ability.get("damage", 0)
-			var ab_elem = ability.get("element", element)
-			var mult = 1.0
-			if "element" in target and element_db and element_db.has_method("get_elemental_multiplier"):
-				mult = element_db.get_elemental_multiplier(ab_elem, target.element)
-			var eff_dmg = int(round(dmg * mult))
+			var eff_dmg: int = int(round(_expected_damage_from(AbilityGeometryScript.tile_of(position), ability, target)))
 
 			# Must afford MP, be in range, deal strictly positive damage, and deal >= target HP
-			if mp >= cost and distance_to_target <= rng and eff_dmg > 0 and eff_dmg >= target_hp:
+			if mp >= cost and _targets_for_ability(ability, target).has(target) and eff_dmg > 0 and eff_dmg >= target_hp:
 				candidates.append({
 					"ability": ability,
 					"target": target,
@@ -484,34 +557,70 @@ func _find_lethal_action() -> Dictionary:
 
 	return candidates[0]
 
-func _move_toward_player():
-	var target_player = get_closest_player_target()
+func _move_toward_player(visited: Array = []):
+	var target_player = get_best_tactical_target()
 	if moves_remaining <= 0 or target_player == null:
-		_act()
+		await _act()
 		return
+	var current_tile: Vector2i = AbilityGeometryScript.tile_of(position)
+	var current_score: float = float(_best_attack_from(current_tile).get("score", 0.0))
+	visited.append(current_tile)
+	var best_tile: Vector2i = _best_tactical_step(target_player, visited)
+	if best_tile.x < 0 or (current_score > 0.0 and _planned_position_score <= current_score * 1.05 + 1.0):
+		await _act()
+		return
+	moves_remaining -= battle_manager.terrain.move_cost(best_tile) if battle_manager and battle_manager.terrain else 1
+	var step := best_tile - current_tile
+	await _play_walk_step(Vector2(step), Vector2(best_tile.x * TILE_SIZE + TILE_SIZE / 2, best_tile.y * TILE_SIZE + TILE_SIZE / 2))
+	await _move_toward_player(visited)
 
-	var diff = target_player.position - position
-	var direction = Vector2.ZERO
+func _best_tactical_step(target: Node2D, visited: Array) -> Vector2i:
+	# Search the whole small arena for a reachable firing square, then take its
+	# first step. This lets a squad route around occupied lanes and stone walls.
+	var start: Vector2i = AbilityGeometryScript.tile_of(position)
+	var occupied: Dictionary = {}
+	for fighter in get_tree().get_nodes_in_group("combatants"):
+		if fighter != self and is_instance_valid(fighter) and ("hp" not in fighter or fighter.hp > 0):
+			occupied[AbilityGeometryScript.tile_of(fighter.position)] = true
+	var frontier: Array[Vector2i] = [start]
+	var cost: Dictionary = {start: 0}
+	var first: Dictionary = {start: start}
+	while not frontier.is_empty():
+		var tile: Vector2i = frontier.pop_front()
+		if int(cost[tile]) >= 12: continue
+		for direction in [Vector2i.RIGHT, Vector2i.LEFT, Vector2i.UP, Vector2i.DOWN]:
+			var next: Vector2i = tile + direction
+			if next.x < 0 or next.x > 17 or next.y < 0 or next.y > 9 or occupied.has(next): continue
+			if battle_manager and battle_manager.terrain and battle_manager.terrain.is_blocked(next): continue
+			var step_cost: int = battle_manager.terrain.move_cost(next) if battle_manager and battle_manager.terrain else 1
+			var new_cost: int = int(cost[tile]) + step_cost
+			if new_cost > 12 or (cost.has(next) and int(cost[next]) <= new_cost): continue
+			cost[next] = new_cost
+			first[next] = next if tile == start else first[tile]
+			frontier.append(next)
+	var best_step := Vector2i(-1, -1)
+	var best_score := -99999.0
+	var has_current_attack: bool = not _best_attack_from(start).is_empty()
+	for tile in cost:
+		if tile == start: continue
+		if has_current_attack and int(cost[tile]) > moves_remaining: continue
+		var step: Vector2i = first[tile]
+		if visited.has(step): continue
+		var immediate_cost: int = battle_manager.terrain.move_cost(step) if battle_manager and battle_manager.terrain else 1
+		if immediate_cost > moves_remaining: continue
+		var score: float = _position_score(tile, target) - float(cost[tile]) * 0.5
+		if score > best_score:
+			best_score = score
+			best_step = step
+	_planned_position_score = best_score
+	return best_step
 
-	if abs(diff.x) >= abs(diff.y):
-		direction = Vector2.RIGHT if diff.x > 0 else Vector2.LEFT
-	else:
-		direction = Vector2.DOWN if diff.y > 0 else Vector2.UP
-
-	var target = position + direction * TILE_SIZE
-	var target_tile = Vector2i(int(floor(target.x / TILE_SIZE)), int(floor(target.y / TILE_SIZE)))
-
-	# Stay strictly within 18x10 arena (cols 0..17, rows 0..9) and don't step onto target_player
-	var can_move = target_tile.x >= 0 and target_tile.x <= 17 and \
-				   target_tile.y >= 0 and target_tile.y <= 9 and \
-				   (target - target_player.position).length() > 10
-
-	if can_move:
-		moves_remaining -= 1
-		await _play_walk_step(direction, target)
-		_move_toward_player()
-	else:
-		_act()
+func _position_score(tile: Vector2i, target: Node2D) -> float:
+	var target_tile: Vector2i = AbilityGeometryScript.tile_of(target.position)
+	var distance: int = abs(tile.x - target_tile.x) + abs(tile.y - target_tile.y)
+	var attack: Dictionary = _best_attack_from(tile)
+	if not attack.is_empty(): return float(attack["score"])
+	return -float(distance) * 8.0
 
 func _play_walk_step(direction: Vector2, target: Vector2):
 	is_animating = true
@@ -537,12 +646,13 @@ func _play_walk_step(direction: Vector2, target: Vector2):
 		sprite.offset = Vector2(0, -6)
 
 	var tween = create_tween()
-	tween.tween_property(self, "position", target, 0.16)
+	tween.tween_property(self, "position", target, 0.32)
 
 	for i in range(4):
 		if sprite:
 			sprite.frame = base_frame + i
-		await get_tree().create_timer(0.04).timeout
+		await get_tree().create_timer(0.08).timeout
+	if tween.is_running(): await tween.finished
 
 	if sprite:
 		sprite.frame = base_frame
@@ -563,20 +673,8 @@ func _act():
 
 		# Play attack animation facing target
 		await _play_attack_anim(chosen, target.position)
-
-		var damage = chosen["damage"]
-		if damage > 0 and target.has_method("take_damage"):
-			target.take_damage(damage, position, dexterity, chosen.get("accuracy", 90), false, self, ab_elem)
-
-		# Apply status effect if any
-		var lethal_effect = chosen.get("effect", "")
-		if lethal_effect != "" and target.has_method("apply_status"):
-			target.apply_status(lethal_effect, 2)
-		if lethal_effect == "knockback" and target.has_method("apply_knockback"):
-			target.apply_knockback(position, 1)
-
-		if battle_manager and battle_manager.has_method("register_elemental_action"):
-			battle_manager.register_elemental_action(self, ab_elem, target)
+		var damage: int = _strike_targets(chosen, target)
+		var lethal_effect: String = chosen.get("effect", "")
 
 		print("[Enemy] Lethal Action Used: %s | Dmg: %d | Effect: %s | MP: %d/%d" % [chosen["name"], damage, lethal_effect, mp, max_mp])
 		if ui:
@@ -606,49 +704,16 @@ func _act():
 					_end_turn()
 					return
 
-	# 3. Tactical Ability Selection
-	var target_player = get_best_tactical_target()
-	if target_player == null:
+	# 3. Use the same range and angle estimate that guided movement.
+	var attack: Dictionary = _best_attack_from(AbilityGeometryScript.tile_of(position))
+	if attack.is_empty():
+		if await _attack_blocking_terrain():
+			return
+		if ui: ui.log_action("[Enemy] Out of range — waits.")
 		_end_turn()
 		return
-
-	var diff = target_player.position - position
-	var distance = (abs(diff.x) + abs(diff.y)) / TILE_SIZE
-
-	var usable = []
-	for ability in ability_pool:
-		if distance <= ability["range"] and mp >= ability["mp_cost"]:
-			usable.append(ability)
-
-	if usable.is_empty():
-		print("[Enemy] No ability in range — passing.")
-		if ui:
-			ui.log_action("[Enemy] Out of range — waits.")
-		_end_turn()
-		return
-
-	# Score usable abilities based on damage, weakness exploitation, and disruption
-	var scored_usable = []
-	for ab in usable:
-		var dmg = float(ab.get("damage", 0))
-		var ab_elem = ab.get("element", element)
-		var t_elem = target_player.element if "element" in target_player else ""
-		var mult = 1.0
-		if element_db and element_db.has_method("get_elemental_multiplier"):
-			mult = element_db.get_elemental_multiplier(ab_elem, t_elem)
-		var score = dmg * mult
-
-		var eff = ab.get("effect", "")
-		if eff in ["stun", "freeze", "control", "blind", "knockback"]:
-			score += 18.0
-
-		scored_usable.append({"ability": ab, "score": score})
-
-	scored_usable.sort_custom(func(a, b):
-		return a["score"] > b["score"]
-	)
-
-	var chosen = scored_usable[0]["ability"]
+	var chosen: Dictionary = attack["ability"]
+	var target_player: Node2D = attack["target"]
 	var ab_elem = chosen.get("element", element)
 	mp -= chosen["mp_cost"]
 	mp = max(mp, 0)
@@ -656,19 +721,8 @@ func _act():
 	# Play attack animation facing target
 	await _play_attack_anim(chosen, target_player.position)
 
-	var damage = chosen["damage"]
-	if damage > 0 and target_player.has_method("take_damage"):
-		target_player.take_damage(damage, position, dexterity, chosen.get("accuracy", 90), false, self, ab_elem)
-
-	# Apply status effect if any
-	var effect = chosen.get("effect", "")
-	if effect != "" and target_player.has_method("apply_status"):
-		target_player.apply_status(effect, 2)
-	if effect == "knockback" and target_player.has_method("apply_knockback"):
-		target_player.apply_knockback(position, 1)
-
-	if battle_manager and battle_manager.has_method("register_elemental_action"):
-		battle_manager.register_elemental_action(self, ab_elem, target_player)
+	var damage: int = _strike_targets(chosen, target_player)
+	var effect: String = chosen.get("effect", "")
 
 	print("[Enemy] Used: %s | Dmg: %d | Effect: %s | MP: %d/%d" % [chosen["name"], damage, effect, mp, max_mp])
 	if ui:
@@ -676,6 +730,68 @@ func _act():
 	if ui:
 		ui.update_enemy_stats(hp, max_hp, mp, max_mp, stamina, max_stamina)
 	_end_turn()
+
+func _attack_blocking_terrain() -> bool:
+	if not battle_manager or not battle_manager.terrain: return false
+	var terrain = battle_manager.terrain
+	var origin: Vector2i = AbilityGeometryScript.tile_of(position)
+	var best: Dictionary = {}
+	var best_score := -99999.0
+	for tile in terrain.hazards:
+		if not terrain.is_blocked(tile): continue
+		for ability in ability_pool:
+			if int(ability.get("damage", 0)) <= 0 or mp < int(ability.get("mp_cost", 0)): continue
+			var element_key: String = ability.get("element", element)
+			if terrain.hazards[tile]["kind"] == "fire" and not element_key in ["water", "ice"]: continue
+			var facing: Vector2i = AbilityGeometryScript.direction_to(origin, tile)
+			var area: Array[Vector2i] = AbilityGeometryScript.tiles(origin, facing, int(ability.get("range", 1)), ability.get("shape", "cardinal"))
+			if not area.has(tile) or terrain.blocks_line(origin, tile): continue
+			var score: float = float(ability.get("damage", 0)) - float(abs(tile.x - origin.x) + abs(tile.y - origin.y)) * 5.0
+			if score > best_score:
+				best_score = score
+				best = {"tile": tile, "ability": ability}
+	if best.is_empty(): return false
+	var chosen: Dictionary = best["ability"]
+	var target_tile: Vector2i = best["tile"]
+	mp = maxi(0, mp - int(chosen.get("mp_cost", 0)))
+	await _play_attack_anim(chosen, Vector2(target_tile.x * TILE_SIZE + TILE_SIZE / 2, target_tile.y * TILE_SIZE + TILE_SIZE / 2))
+	terrain.react_to_attack(chosen.get("element", element), [target_tile], int(chosen.get("damage", 0)))
+	if ui: ui.log_action("[Enemy] %s clears an obstacle." % chosen.get("name", "Attack"))
+	_end_turn()
+	return true
+
+func _strike_targets(ability: Dictionary, aimed_at: Node2D) -> int:
+	var total := 0
+	var ab_elem: String = ability.get("element", element)
+	var origin_tile: Vector2i = AbilityGeometryScript.tile_of(position)
+	var target_tile: Vector2i = AbilityGeometryScript.tile_of(aimed_at.position)
+	var facing: Vector2i = AbilityGeometryScript.direction_to(origin_tile, target_tile)
+	var area: Array[Vector2i] = AbilityGeometryScript.tiles(origin_tile, facing, int(ability.get("range", 1)), ability.get("shape", "cardinal"))
+	for victim in _targets_for_ability(ability, aimed_at):
+		if not is_instance_valid(victim) or victim.is_queued_for_deletion() or ("hp" in victim and victim.hp <= 0): continue
+		var accuracy: int = int(ability.get("accuracy", 90))
+		if battle_manager and battle_manager.terrain:
+			accuracy -= battle_manager.terrain.accuracy_penalty(origin_tile, AbilityGeometryScript.tile_of(victim.position))
+		var victim_tile: Vector2i = AbilityGeometryScript.tile_of(victim.position)
+		var distance: int = absi(victim_tile.x - origin_tile.x) + absi(victim_tile.y - origin_tile.y)
+		var band: String = ability.get("range_band", AbilityGeometryScript.preferred_band(str(ability.get("name", "")), int(ability.get("range", 1))))
+		var range_damage: int = int(round(int(ability.get("damage", 0)) * AbilityGeometryScript.range_multiplier(band, distance)))
+		var dealt: int = victim.take_damage(range_damage, position, dexterity, accuracy, false, self, ab_elem)
+		total += dealt
+		if dealt > 0:
+			var effect: String = ability.get("effect", "")
+			if effect != "" and ("hp" not in victim or victim.hp > 0) and victim.has_method("apply_status"):
+				victim.apply_status(effect, 2)
+			if effect == "knockback" and ("hp" not in victim or victim.hp > 0) and victim.has_method("apply_knockback"):
+				victim.apply_knockback(position, 1)
+			if battle_manager and battle_manager.has_method("register_elemental_action"):
+				battle_manager.register_elemental_action(self, ab_elem, victim)
+	if battle_manager and battle_manager.terrain:
+		battle_manager.terrain.react_to_attack(ab_elem, area, int(ability.get("damage", 0)))
+		var terrain_kind: String = ability.get("terrain_kind", "")
+		if terrain_kind != "":
+			battle_manager.terrain.place_from_skill(terrain_kind, origin_tile, target_tile, int(ability.get("range", 1)), ability.get("shape", "cardinal"), int(ability.get("terrain_duration", 2)))
+	return total
 
 func _play_attack_anim(_ability: Dictionary, target_pos: Vector2):
 	if sprite == null:
@@ -703,7 +819,8 @@ func _play_attack_anim(_ability: Dictionary, target_pos: Vector2):
 	var base_frame = attack_row * 4
 	for i in range(4):
 		sprite.frame = base_frame + i
-		await get_tree().create_timer(0.06).timeout
+		await get_tree().create_timer(0.13).timeout
+	await get_tree().create_timer(0.12).timeout
 
 	if tex_walk:
 		sprite.texture = tex_walk

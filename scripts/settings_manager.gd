@@ -106,14 +106,24 @@ func load_settings():
 	var config = ConfigFile.new()
 	var err = config.load(SETTINGS_FILE_PATH)
 	if err == OK:
-		master_volume = config.get_value("Audio", "master_volume", 0.8)
-		music_volume = config.get_value("Audio", "music_volume", 0.7)
-		sfx_volume = config.get_value("Audio", "sfx_volume", 0.9)
-		window_mode = config.get_value("Display", "window_mode", 0)
-		vsync_enabled = config.get_value("Display", "vsync_enabled", true)
+		# ConfigFile values are Variants. Validate their types before assigning
+		# typed properties so a damaged settings file cannot interrupt startup.
+		master_volume = _read_volume(config, "master_volume", 0.8)
+		music_volume = _read_volume(config, "music_volume", 0.7)
+		sfx_volume = _read_volume(config, "sfx_volume", 0.9)
+		var saved_mode = config.get_value("Display", "window_mode", 0)
+		window_mode = saved_mode if saved_mode is int else 0
+		var saved_vsync = config.get_value("Display", "vsync_enabled", true)
+		vsync_enabled = saved_vsync if saved_vsync is bool else true
 		print("[SettingsManager] Settings loaded successfully.")
 	else:
 		print("[SettingsManager] No existing settings file. Using clean defaults.")
+
+func _read_volume(config: ConfigFile, key: String, fallback: float) -> float:
+	var value = config.get_value("Audio", key, fallback)
+	if (value is float or value is int) and is_finite(float(value)):
+		return clampf(float(value), 0.0, 1.0)
+	return fallback
 
 func reset_to_defaults():
 	master_volume = 0.8

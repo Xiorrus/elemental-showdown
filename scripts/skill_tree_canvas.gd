@@ -9,6 +9,7 @@
 # 6. Strict dark-fantasy aesthetic with NO emojis and clean typography.
 class_name SkillTreeCanvas
 extends Control
+const AbilityGeometry = preload("res://scripts/ability_geometry.gd")
 
 signal skill_selected(skill_key: String)
 signal skill_unlocked(skill_key: String)
@@ -22,7 +23,7 @@ const R_INNER: float = 160.0          # Inner ring radius (Core elements)
 const R_MIDDLE: float = 280.0         # Middle ring radius (Double combinations)
 const R_OUTER: float = 410.0          # Outermost ring radius (Triple combinations)
 const PUSH_OUT_MULT: float = 2.4      # Outward push multiplier when focused
-const MIN_ZOOM: float = 0.40
+const MIN_ZOOM: float = 0.25
 const MAX_ZOOM: float = 1.60
 
 const ELEMENT_SIGILS = {
@@ -204,7 +205,7 @@ func _build_nav_bar():
 	nav_bar.add_child(btn_zoom_out)
 
 	zoom_lbl = Label.new()
-	zoom_lbl.text = "85%"
+	zoom_lbl.text = "%d%%" % int(round(zoom_level * 100))
 	zoom_lbl.custom_minimum_size = Vector2(40, 28)
 	zoom_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	zoom_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -333,8 +334,15 @@ func _initialize_mandala():
 		if discipline_buttons.has(target_k):
 			discipline_buttons[al] = discipline_buttons[target_k]
 
-	_update_viewport_transform()
+	# A new Control has its minimum size but has not finished container layout yet.
+	# Wait for that layout before measuring the cards for the initial fit.
+	_fit_after_layout()
 	lines_canvas.queue_redraw()
+
+func _fit_after_layout() -> void:
+	await get_tree().process_frame
+	if is_inside_tree():
+		fit_tree()
 
 func _clear_all_nodes():
 	for k in discipline_buttons:
@@ -597,6 +605,7 @@ func focus_discipline(disc_key: String):
 
 	current_tween = create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	current_tween.tween_method(func(v: float): transition_progress = v, transition_progress, 1.0, 0.35)
+	current_tween.tween_callback(fit_tree)
 
 	# Auto-inspect the root or first skill
 	if not skill_node_widgets.is_empty():
@@ -628,6 +637,7 @@ func _on_collapse_completed():
 	skill_node_targets.clear()
 	_render_empty_inspector()
 	_update_positions_and_redraw()
+	fit_tree()
 
 # ──────────────────────────────────────────────
 #  PROCEDURAL SKILL NODES SPAWNING
@@ -660,8 +670,8 @@ func _spawn_skill_nodes_for_discipline(disc_key: String):
 		var b_angle = float(n.get("branch_angle", 0.0))
 		var b_idx = int(n.get("branch_index", 0))
 
-		# Generous radial distances preventing any overlap
-		var dist = 175.0 + (b_tier - 1) * 135.0
+		# Horizontal branches need more separation than each 148px-wide card.
+		var dist = 190.0 + (b_tier - 1) * 180.0
 		var rad = deg_to_rad(b_angle)
 		var target_pos = Vector2(cos(rad), sin(rad)) * dist
 
@@ -694,15 +704,15 @@ func _spawn_space_time_nodes(edata: Node):
 		var target_pos = Vector2.ZERO
 		match s_key:
 			"Spatial_Shift":
-				target_pos = Vector2(-150, 0)
+				target_pos = Vector2(-190, 0)
 			"Spatial_Compression":
-				target_pos = Vector2(-270, -75)
+				target_pos = Vector2(-370, -75)
 			"Spatial_Barrier":
-				target_pos = Vector2(-270, 75)
+				target_pos = Vector2(-370, 75)
 			"Space":
-				target_pos = Vector2(-390, 0)
+				target_pos = Vector2(-550, 0)
 			_:
-				target_pos = Vector2(-150.0 - (b_tier - 1) * 120.0, 0)
+				target_pos = Vector2(-190.0 - (b_tier - 1) * 180.0, 0)
 
 		var widget = _create_skill_node_widget(n)
 		nodes_container.add_child(widget)
@@ -716,15 +726,15 @@ func _spawn_space_time_nodes(edata: Node):
 		var target_pos = Vector2.ZERO
 		match s_key:
 			"Time_Dilation":
-				target_pos = Vector2(150, 0)
+				target_pos = Vector2(190, 0)
 			"Chrono_Acceleration":
-				target_pos = Vector2(270, -75)
+				target_pos = Vector2(370, -75)
 			"Temporal_Decay":
-				target_pos = Vector2(270, 75)
+				target_pos = Vector2(370, 75)
 			"Chrono_Stasis":
-				target_pos = Vector2(390, 0)
+				target_pos = Vector2(550, 0)
 			_:
-				target_pos = Vector2(150.0 + (b_tier - 1) * 120.0, 0)
+				target_pos = Vector2(190.0 + (b_tier - 1) * 180.0, 0)
 
 		var widget = _create_skill_node_widget(n)
 		nodes_container.add_child(widget)
@@ -1233,12 +1243,17 @@ func inspect_skill(skill_key: String):
 
 			# Stats & tactical description
 			var f_shape = f_info.get("shape", "cardinal")
+			var form_reach: int = AbilityGeometry.effective_reach(str(f_info.get("name", "")), int(f_info.get("range", 2)))
+			var form_band: String = AbilityGeometry.preferred_band(str(f_info.get("name", "")), form_reach)
 			var f_stats = "Rng: %d • Dmg: %.2fx • MP: %.2fx • Shape: %s" % [
-				f_info.get("range", 2),
+				form_reach,
 				f_info.get("dmg_mult", 1.0),
 				f_info.get("mp_mult", 1.0),
-				f_shape.capitalize()
+				AbilityGeometry.shape_for(str(f_info.get("name", "")), f_shape).capitalize()
 			]
+			var form_effect: String = f_info.get("effect", ab_data.get("effect", ""))
+			if float(ab_data.get("damage", 0)) * float(f_info.get("dmg_mult", 1.0)) > 0.0 and not form_effect in ["dodge_buff", "evasion", "defense_buff", "armor_buff", "guard", "heal", "cleanse", "anchor"]:
+				f_stats += "\n%s +25%% at %s" % [form_band.capitalize(), AbilityGeometry.ideal_range_label(form_band, form_reach)]
 			var lbl_f_stats = Label.new()
 			lbl_f_stats.text = f_stats + "\n" + f_info.get("desc", "")
 			lbl_f_stats.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -1474,11 +1489,30 @@ func reset_view():
 	_update_viewport_transform()
 
 func fit_tree():
-	reset_view()
-	if size.x < 1100:
-		zoom_level = 0.75
-	else:
-		zoom_level = 0.85
+	_update_positions_and_redraw()
+	# Measure the current cards in world coordinates, reserving the fixed toolbar
+	# and inspector. A fixed zoom value cannot fit both tall and wide trees.
+	var bounds = Rect2()
+	var has_bounds = false
+	var seen = {}
+	var widgets = skill_node_widgets.values() if focused_discipline != "" else discipline_buttons.values()
+	if focused_discipline != "":
+		var root_key = "space_time" if focused_discipline in ["space", "time", "space_time"] else focused_discipline
+		if discipline_buttons.has(root_key):
+			widgets.append(discipline_buttons[root_key])
+	for widget in widgets:
+		if not is_instance_valid(widget) or seen.has(widget):
+			continue
+		seen[widget] = true
+		var rect = Rect2(widget.position, widget.size)
+		bounds = bounds.merge(rect) if has_bounds else rect
+		has_bounds = true
+	if not has_bounds or bounds.size.x <= 0 or bounds.size.y <= 0:
+		return
+	var available = Rect2(16, 54, maxf(size.x - 350, 100), maxf(size.y - 70, 100))
+	zoom_level = clampf(minf(available.size.x / bounds.size.x, available.size.y / bounds.size.y), MIN_ZOOM, MAX_ZOOM)
+	var default_center = Vector2(maxf(size.x - 350, 100) * 0.5, size.y * 0.5)
+	pan_offset = available.get_center() - bounds.get_center() * zoom_level - default_center
 	if zoom_lbl:
 		zoom_lbl.text = "%d%%" % int(round(zoom_level * 100))
 	_update_viewport_transform()

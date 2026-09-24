@@ -45,9 +45,9 @@ func _run_stress_harness():
 	assert(bm != null, "BattleManager found")
 
 	# -------------------------------------------------------------
-	# TEST 1: Rapid spamming of player.use_ability(0) during live attack animation
+	# TEST 1: Rapid spamming of the starter attack during live animation.
 	# -------------------------------------------------------------
-	print("\n--- TEST 1: Rapid use_ability(0) spamming during live animation ---")
+	print("\n--- TEST 1: Rapid starter attack spamming during live animation ---")
 	bm.current_state = bm.State.PLAYER_ACT
 	player.position = Vector2(3 * 64 + 32, 4 * 64 + 32)
 	enemy.position = Vector2(4 * 64 + 32, 4 * 64 + 32) # Adjacent (dist: 1 <= range 2)
@@ -57,10 +57,13 @@ func _run_stress_harness():
 	var initial_hp = enemy.hp
 
 	# Trigger initial ability asynchronously
-	var key = player.equipped_abilities[0]
+	var attack_slot := 1 # Slot 0 is now the paired support starter.
+	player.select_ability(attack_slot)
+	var key = player.equipped_abilities[attack_slot]
 	var ab_data = player.element_db.ABILITIES[key]
-	var expected_mp_cost = ab_data.get("mp_cost", 11)
-	player.use_ability(0, enemy)
+	var expected_mp_cost = int(round(ab_data.get("mp_cost", 11) * player.get_ability_variation_info(key).get("mp_mult", 1.0)))
+	player.dexterity = 200 # Guarantee a hit; this suite tests sequencing, not evasion RNG.
+	player.use_ability(attack_slot, enemy)
 	await process_frame # Allow first frame of coroutine to run
 
 	check(player.is_animating == true, "Player is_animating flag set to true during attack animation")
@@ -68,7 +71,7 @@ func _run_stress_harness():
 
 	# Spam use_ability 10 times in a tight loop while animation is actively playing
 	for i in range(10):
-		player.use_ability(0, enemy)
+		player.use_ability(attack_slot, enemy)
 
 	# Spam on_attack_tile_clicked 5 times while animating
 	var enemy_tile = Vector2i(4, 4)
@@ -111,7 +114,7 @@ func _run_stress_harness():
 	initial_hp = enemy.hp
 
 	# Launch ability
-	player.use_ability(0, enemy)
+	player.use_ability(attack_slot, enemy)
 	await process_frame
 	# Wait for 0.05s so timer 1 has ticked but total 0.24s anim is not finished
 	var timer = create_timer(0.05)
@@ -155,6 +158,10 @@ func _run_stress_harness():
 	bm.current_state = bm.State.PLAYER_MOVE
 	player.position = Vector2(3 * 64 + 32, 4 * 64 + 32)
 	player.moves_remaining = 3
+	# The earlier combat placed the enemy on (4, 4). Use an unoccupied lane
+	# and rebuild the grid after relocating the fixtures, as the real UI does.
+	enemy.position = Vector2(7 * 64 + 32, 4 * 64 + 32)
+	grid_overlay.show_move_grid(player.position, player.moves_remaining)
 	var start_pos = player.position
 	var target_tile1 = Vector2i(4, 4)
 	var target_pos1 = Vector2(4 * 64 + 32, 4 * 64 + 32)
@@ -164,7 +171,7 @@ func _run_stress_harness():
 	await process_frame
 
 	check(player.is_animating == true, "Player is_animating is true during walk cycle")
-	check(player.position == target_pos1, "Player moved to target pos (4, 4)")
+	check(player.position != target_pos1, "Player travels visibly instead of teleporting")
 	check(player.moves_remaining == 2, "Moves remaining decremented to 2")
 
 	# While animating (wait 0.03s into the 0.16s cycle)
@@ -177,7 +184,7 @@ func _run_stress_harness():
 	player.on_move_tile_clicked(target_tile2, 1)
 	player.on_move_tile_clicked(target_tile2, 1)
 
-	check(player.position == target_pos1, "Mid-animation move clicks ignored; player remained at pos (4, 4)")
+	check(player.position.distance_to(start_pos) < 64.0, "Mid-animation move clicks ignored while first step continues")
 	check(player.moves_remaining == 2, "Moves remaining remained 2 (no second move deducted)")
 
 	# Attempt right click during walk cycle
@@ -189,14 +196,16 @@ func _run_stress_harness():
 		await process_frame
 
 	check(player.is_animating == false, "Player is_animating is false after walk cycle ends")
+	check(player.position == target_pos1, "Player arrives at target pos (4, 4) after visible travel")
 
 	# Verify player CAN move now that animation is done
 	player.on_move_tile_clicked(target_tile2, 1)
-	check(player.position == Vector2(5 * 64 + 32, 4 * 64 + 32), "Post-animation move click succeeded; player moved to (5, 4)")
+	check(player.is_animating, "Post-animation move click begins another visible step")
 	check(player.moves_remaining == 1, "Moves remaining decremented to 1")
 
 	while player.is_animating:
 		await process_frame
+	check(player.position == Vector2(5 * 64 + 32, 4 * 64 + 32), "Second step reaches (5, 4)")
 
 	# Verify RMB works now that animation is done
 	player.on_right_mouse_clicked()
@@ -235,9 +244,10 @@ func _run_stress_harness():
 		for f in failure_log:
 			print("   * " + f)
 		print("========================================================\n")
-		assert(failed_tests == 0, "%d tests failed in Challenger Concurrency Stress Harness." % failed_tests)
 	else:
 		print("  ALL EMPIRICAL STRESS TESTS PASSED CLEANLY!")
 		print("========================================================\n")
 
-	quit()
+	scn.queue_free()
+	await process_frame
+	quit(1 if failed_tests > 0 else 0)

@@ -417,10 +417,11 @@ func _run() -> void:
 		"Sylas": Vector2i(-1, -1),
 		"Aurelia": Vector2i(1, 4)
 	}
-	cm.skill_variations = {
-		"Combustion": "Explosive Punch",
-		"Stone_Plating": "Reinforced Granite"
-	}
+	# Save real unlocked form keys, as the combat/UI API does; display names
+	# (and the removed Reinforced Granite form) are not valid active selections.
+	cm.unlock_skill_form("Stone_Plating", "rock_pillar")
+	cm.unlock_skill_form("Metal", "ferrous_spike")
+	cm.set_active_skill_form("Metal", "ferrous_spike")
 	cm.known_fighters = [
 		{"name": "RivalRik", "element": "fire", "league_tier": 2, "potential": 80, "career_team": "Blaze Clan"}
 	]
@@ -463,7 +464,7 @@ func _run() -> void:
 	_assert("S5.12 Starting formation vector2i restored accurately",
 		cm.starting_formation.get("Valen") == Vector2i(3, 4) and cm.starting_formation.get("Sylas") == Vector2i(-1, -1))
 	_assert("S5.13 Skill variations preserved",
-		cm.skill_variations.get("Combustion") == "Explosive Punch" and cm.skill_variations.get("Stone_Plating") == "Reinforced Granite")
+		cm.skill_variations.get("Metal") == "ferrous_spike" and cm.skill_variations.get("Stone_Plating") == "rock_pillar")
 	_assert("S5.14 Known fighters array preserved",
 		cm.known_fighters.size() == 1 and cm.known_fighters[0].get("name") == "RivalRik")
 

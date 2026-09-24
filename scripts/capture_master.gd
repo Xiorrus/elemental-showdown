@@ -3,6 +3,9 @@
 # Renders pixel-perfect captures for each of the 10 canonical screens.
 extends SceneTree
 
+const CaptureOutput = preload("res://scripts/capture_output.gd")
+var capture_failed := false
+
 const SCREEN_MAIN_MENU            = "capture_main_menu.png"
 const SCREEN_SETTINGS_MODAL       = "capture_settings_modal.png"
 const SCREEN_CHAR_CUSTOM          = "capture_char_custom.png"
@@ -22,18 +25,14 @@ const SCREEN_HUB_CULTIVATION_TREE_INSPECTOR     = "capture_hub_cultivation_tree_
 const SCREEN_COMBAT_HUD           = "capture_combat_1v1_hud.png"
 const SCREEN_COMBAT_VICTORY       = "capture_combat_victory.png"
 
-const BRAIN_DIR = "C:/Users/alexj/.gemini/antigravity/brain/3f3e849a-f15b-4bb0-ba75-7761da16036e/screenshots_new_ui/"
-const PROJ_DIR  = "C:/Users/alexj/Documents/elemental-showdown/screenshots/new_ui/"
-
 func _init():
 	_run.call_deferred()
 
 func _run():
+	if not CaptureOutput.prepare():
+		quit(1)
+		return
 	print("[CaptureMaster] Initializing 1920x1080 visual QA capture sequence...")
-
-	# Ensure target directories exist
-	DirAccess.make_dir_recursive_absolute(BRAIN_DIR)
-	DirAccess.make_dir_recursive_absolute(PROJ_DIR)
 
 	# Parse target filter if specified
 	var target_screen = ""
@@ -41,6 +40,16 @@ func _run():
 	for a in args:
 		if a.begins_with("--screen="):
 			target_screen = a.substr(9).strip_edges().to_lower()
+	var valid_targets = [
+		"main_menu", "settings", "customization", "char_custom", "hub",
+		"schedule", "hub_schedule", "roster", "hub_roster", "deployment", "hub_deployment",
+		"intel", "hub_intel", "cultivation", "hub_cultivation",
+		"combat", "hud", "victory", "combat_hud", "combat_victory"
+	]
+	if target_screen != "" and not valid_targets.has(target_screen):
+		printerr("[CaptureMaster] Unknown screen: ", target_screen)
+		quit(2)
+		return
 
 	# Set up mock campaign data
 	var cm = root.get_node_or_null("CampaignManager")
@@ -237,13 +246,8 @@ func _run():
 		await process_frame
 
 	print("[CaptureMaster] All requested captures complete.")
-	quit(0)
+	quit(1 if capture_failed else 0)
 
 func _capture(file_name: String):
-	var img = root.get_texture().get_image()
-	if img:
-		img.save_png(BRAIN_DIR + file_name)
-		img.save_png(PROJ_DIR + file_name)
-		print("[CaptureMaster] Captured: ", file_name)
-	else:
-		printerr("[CaptureMaster] Failed to capture texture for: ", file_name)
+	if not CaptureOutput.save(root, file_name):
+		capture_failed = true

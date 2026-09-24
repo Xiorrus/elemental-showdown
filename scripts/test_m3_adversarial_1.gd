@@ -375,13 +375,16 @@ func _run() -> void:
 	_assert("S4.9 has_team remains false after win 2", not cm.has_team)
 
 	var win3 = cm.record_street_win()
-	_assert("S4.10 Street win 3 triggers recruitment and returns true", win3 and cm.street_wins == 3)
-	_assert("S4.11 has_team transitions to true after win 3", cm.has_team)
-	_assert("S4.12 active_match_format transitions to '3v3'", cm.active_match_format == "3v3")
-	_assert("S4.13 Roster populated with 3–5 allies after recruitment",
+	_assert("S4.10 Street win 3 creates a pending recruitment offer", win3 and cm.street_wins == 3 and cm.recruitment_offer_pending)
+	_assert("S4.11 Player stays solo until offer acceptance", not cm.has_team and cm.allies.is_empty() and cm.active_match_format == "1v1")
+	var offer_accepted = cm.accept_recruitment_offer()
+	_assert("S4.12 Explicit offer acceptance creates a team and 3v3 format",
+		offer_accepted and cm.has_team and cm.active_match_format == "3v3" and not cm.recruitment_offer_pending)
+	_assert("S4.13 Roster populated with 3–5 allies after acceptance",
 		cm.allies.size() >= 3 and cm.allies.size() <= 5)
 	_assert("S4.14 designated_sub assigned to an athlete on the roster",
 		cm.designated_sub != "" and cm.get_ally(cm.designated_sub).size() > 0)
+	_assert("S4.14a Accepted recruitment offer cannot be reused", not cm.accept_recruitment_offer())
 
 	var win4 = cm.record_street_win()
 	_assert("S4.15 Subsequent win 4 returns false (does not re-trigger recruitment)",

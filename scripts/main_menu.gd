@@ -58,7 +58,7 @@ func _update_continue_button_state():
 			var json_str = file.get_as_text()
 			file.close()
 			var json = JSON.new()
-			if json.parse(json_str) == OK and json.data is Dictionary:
+			if json.parse(json_str) == OK and json.data is Dictionary and cm._is_save_data_valid(json.data):
 				var d = json.data
 				var p_name = d.get("player_name", "Brawler")
 				var p_lvl = d.get("player_level", 1)
@@ -66,8 +66,9 @@ func _update_continue_button_state():
 				btn_load.text = "Continue: %s (Lv. %d %s)" % [p_name.capitalize(), p_lvl, p_elem]
 				btn_load.disabled = false
 				return
-		btn_load.text = "Continue Campaign"
-		btn_load.disabled = false
+		btn_load.text = "Saved Campaign Unavailable"
+		btn_load.tooltip_text = "The save file could not be read. Your existing file has been preserved."
+		btn_load.disabled = true
 	else:
 		btn_load.text = "No Saved Campaign"
 		btn_load.disabled = true

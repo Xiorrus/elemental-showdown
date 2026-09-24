@@ -232,6 +232,18 @@ theme_override_styles/normal = SubResource("StyleBoxFlat_lineedit")
 text = "Ignis"
 placeholder_text = "Enter warrior name..."
 
+[node name="LblNationality" type="Label" parent="MainLayout/Columns/LeftCol/IdentityCard/Margin/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.70, 0.76, 0.86, 1)
+theme_override_font_sizes/font_size = 11
+text = "Nationality"
+
+[node name="NationalityChoice" type="OptionButton" parent="MainLayout/Columns/LeftCol/IdentityCard/Margin/VBox"]
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+theme_override_styles/normal = SubResource("StyleBoxFlat_lineedit")
+
 [node name="StatusPill" type="PanelContainer" parent="MainLayout/Columns/LeftCol/IdentityCard/Margin/VBox"]
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_pill")
@@ -257,7 +269,7 @@ text = "Tournament Pathway"
 layout_mode = 2
 theme_override_colors/font_color = Color(0.60, 0.68, 0.78, 1)
 theme_override_font_sizes/font_size = 10
-text = "You enter the Bronze League as an unseeded rogue striker. Prove your mastery across 7-day tournament brackets to attract scout attention, recruit dedicated squadmates, and qualify for the Apex World Championship."
+text = "Begin as a Street fighter. Your nationality determines your national team and improves your chances with clubs from home. Train, rest, and compete through an eight-month career season."
 autowrap_mode = 2
 
 [node name="CenterCol" type="VBoxContainer" parent="MainLayout/Columns"]
@@ -343,7 +355,8 @@ autowrap_mode = 2
 layout_mode = 2
 theme_override_colors/font_color = Color(0.35, 0.85, 0.55, 1)
 theme_override_font_sizes/font_size = 11
-text = "Starter Martial Art: Combustion (Damage: 35 • MP: 25 • Range: 2)"
+text = "Support: Thermal Radiation (Heat Veil)  ·  8 MP  ·  Range 1\nAttack: Combustion (Explosive Punch)  ·  9 MP  ·  Range 1"
+autowrap_mode = 2
 
 [node name="RightCol" type="VBoxContainer" parent="MainLayout/Columns"]
 layout_mode = 2

@@ -57,12 +57,12 @@ func _run_tests():
 			var has_range = f.has("range") and int(f["range"]) >= 1
 			var has_dmg = f.has("dmg_mult") and float(f["dmg_mult"]) >= 0.0
 			var has_mp = f.has("mp_mult") and float(f["mp_mult"]) > 0.0
-			var has_shape = f.has("shape") and (f["shape"] in ["cardinal", "linear_front", "radial"])
+			var has_shape = f.has("shape") and (f["shape"] in ["cardinal", "linear_front", "radial", "cone", "wide_slash"])
 			var has_desc = f.has("desc") and str(f["desc"]).length() > 0
 			if not (has_name and has_range and has_dmg and has_mp and has_shape and has_desc):
 				invalid_forms.append("%s:%s" % [ab_key, f_k])
 
-	assert_test(all_have_3_forms, "T1.2 Every ability has exactly 3 forms (Missing: %s)" % str(missing_forms))
+	assert_test(all_have_3_forms, "T1.2 Every ability has exactly 3 forms (Other: %s)" % str(missing_forms))
 	assert_test(invalid_forms.is_empty(), "T1.3 All forms have valid name, range, dmg_mult, mp_mult, shape, desc (Invalid: %s)" % str(invalid_forms))
 
 	# Specific key checks
@@ -142,8 +142,7 @@ func _run_tests():
 	# SUITE 6: Mid-Combat Dynamic Form Switching (Player Entity)
 	# --------------------------------------------------------------------------
 	print("\n--- SUITE 6: Mid-Combat Dynamic Form Switching ---")
-	var player_script = load("res://scripts/player.gd")
-	var player = player_script.new()
+	var player = load("res://scenes/Player.tscn").instantiate()
 	root.add_child(player)
 	player.element_db = edata
 	player.equipped_abilities = ["Laser"]
@@ -171,7 +170,7 @@ func _run_tests():
 	var info_f2 = player.get_ability_variation_info("Laser")
 	assert_test(info_f2["name"] == "Prism Sweep", "T6.5 Cycled form 1 -> form 2 ('Prism Sweep')")
 	assert_test(info_f2["range_override"] == 3, "T6.6 Prism Sweep range updated to 3")
-	assert_test(info_f2["shape"] == "cardinal", "T6.7 Prism Sweep shape updated to 'cardinal'")
+	assert_test(info_f2["shape"] == "wide_slash", "T6.7 Prism Sweep uses a wide slash area")
 	assert_test(is_equal_approx(info_f2["dmg_mult"], 0.85), "T6.8 Prism Sweep dmg_mult is 0.85")
 
 	# Cycle 2: prism_sweep -> flash_flare
@@ -219,6 +218,10 @@ func _run_tests():
 	cm3.unlocked_skill_forms = {} # Simulating legacy state
 	var legacy_forms = cm3.get_unlocked_forms_for_skill("Gale_Step")
 	assert_test(legacy_forms.has("wind_slip"), "T7.5 Legacy state auto-populates Form 1 ('wind_slip') for unlocked skill")
+	cm2.free()
+	cm3.free()
+	player.queue_free()
+	await process_frame
 
 	# --------------------------------------------------------------------------
 	# RESULTS SUMMARY

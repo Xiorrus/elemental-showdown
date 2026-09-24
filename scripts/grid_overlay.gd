@@ -1,4 +1,5 @@
 extends Node2D
+const AbilityGeometryScript = preload("res://scripts/ability_geometry.gd")
 
 # ──────────────────────────────────────────────
 #  ELEMENTAL SHOWDOWN — Tactical Grid Overlay
@@ -14,9 +15,12 @@ var current_mode: Mode = Mode.NONE
 var tilemap = null
 var player = null
 var enemy = null
+var terrain = null
 
 # Data caches
 var valid_move_tiles: Dictionary = {}    # Vector2i -> int (distance)
+var move_predecessor: Dictionary = {}      # Vector2i -> prior tile on shortest legal path
+var move_origin: Vector2i = Vector2i(-1, -1)
 var valid_attack_tiles: Array = []       # Array of Vector2i
 var hovered_tile: Vector2i = Vector2i(-9999, -9999)
 var _custom_font: Font = null
@@ -74,7 +78,10 @@ func _unhandled_input(event):
 		# Check if player clicked directly on an allied squadmate to switch control
 		var clicked_ally = get_ally_at_tile(hovered_tile)
 		if clicked_ally != null:
-			emit_signal("ally_clicked", clicked_ally)
+			if current_mode == Mode.ATTACK and is_instance_valid(player) and player.has_method("selected_ability_is_support") and player.selected_ability_is_support():
+				emit_signal("attack_tile_clicked", hovered_tile)
+			else:
+				emit_signal("ally_clicked", clicked_ally)
 			get_viewport().set_input_as_handled()
 			return
 
@@ -100,9 +107,11 @@ func is_tile_in_arena(t: Vector2i) -> bool:
 func show_move_grid(p_pos: Vector2, moves_remaining: int):
 	current_mode = Mode.MOVE
 	valid_move_tiles.clear()
+	move_predecessor.clear()
 	valid_attack_tiles.clear()
 
 	var start_tile = Vector2i(int(floor(p_pos.x / TILE_SIZE)), int(floor(p_pos.y / TILE_SIZE)))
+	move_origin = start_tile
 
 	# Collect all occupied tiles of other combatants (allies & enemies)
 	var occupied_tiles: Array = []
@@ -123,6 +132,8 @@ func show_move_grid(p_pos: Vector2, moves_remaining: int):
 		var current = queue.pop_front()
 		var cur_tile = current["tile"]
 		var cur_dist = current["dist"]
+		if cur_dist != visited[cur_tile]:
+			continue # An ice-weighted path found a shorter route after this entry was queued.
 
 		if cur_dist > 0:
 			valid_move_tiles[cur_tile] = cur_dist
@@ -136,12 +147,28 @@ func show_move_grid(p_pos: Vector2, moves_remaining: int):
 				# Check if tile is inside the arena
 				if not is_tile_in_arena(next_tile):
 					continue
+				if terrain and terrain.is_blocked(next_tile):
+					continue
+				var next_dist: int = cur_dist + (terrain.move_cost(next_tile) if terrain else 1)
+				if next_dist > moves_remaining:
+					continue
 
-				if not visited.has(next_tile) or visited[next_tile] > cur_dist + 1:
-					visited[next_tile] = cur_dist + 1
-					queue.append({ "tile": next_tile, "dist": cur_dist + 1 })
+				if not visited.has(next_tile) or visited[next_tile] > next_dist:
+					visited[next_tile] = next_dist
+					move_predecessor[next_tile] = cur_tile
+					queue.append({ "tile": next_tile, "dist": next_dist })
 
 	queue_redraw()
+
+func get_move_path(target: Vector2i) -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	if not valid_move_tiles.has(target): return result
+	var tile := target
+	while tile != move_origin:
+		if not move_predecessor.has(tile): return []
+		result.push_front(tile)
+		tile = move_predecessor[tile]
+	return result
 
 # ──────────────────────────────────────────────
 #  SHOW ATTACK GRID
@@ -154,28 +181,7 @@ func show_attack_grid(p_pos: Vector2, ability_range: int, shape: String = "cardi
 
 	var start_tile = Vector2i(int(floor(p_pos.x / TILE_SIZE)), int(floor(p_pos.y / TILE_SIZE)))
 
-	if shape == "linear_front":
-		var f_dir = facing_dir if facing_dir != Vector2i.ZERO else Vector2i(1, 0)
-		for d in range(1, ability_range + 1):
-			var t = start_tile + f_dir * d
-			if is_tile_in_arena(t):
-				valid_attack_tiles.append(t)
-	elif shape == "radial":
-		for dx in range(-ability_range, ability_range + 1):
-			for dy in range(-ability_range, ability_range + 1):
-				var dist = abs(dx) + abs(dy)
-				if dist > 0 and dist <= ability_range:
-					var t = start_tile + Vector2i(dx, dy)
-					if is_tile_in_arena(t):
-						valid_attack_tiles.append(t)
-	else:
-		# "cardinal" (Standard): Front, Back, Left, Right — NO DIAGONALS!
-		var directions = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
-		for dir in directions:
-			for d in range(1, ability_range + 1):
-				var t = start_tile + dir * d
-				if is_tile_in_arena(t):
-					valid_attack_tiles.append(t)
+	valid_attack_tiles.assign(AbilityGeometryScript.tiles(start_tile, facing_dir, ability_range, shape))
 
 	queue_redraw()
 

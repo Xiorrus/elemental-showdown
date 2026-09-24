@@ -6,6 +6,7 @@ extends Control
 
 # Identity & Discipline Controls
 @onready var name_input: LineEdit = $MainLayout/Columns/LeftCol/IdentityCard/Margin/VBox/NameEdit
+@onready var nationality_choice: OptionButton = $MainLayout/Columns/LeftCol/IdentityCard/Margin/VBox/NationalityChoice
 @onready var btn_fire: Button = $MainLayout/Columns/CenterCol/GridElements/BtnFire
 @onready var btn_water: Button = $MainLayout/Columns/CenterCol/GridElements/BtnWater
 @onready var btn_earth: Button = $MainLayout/Columns/CenterCol/GridElements/BtnEarth
@@ -45,30 +46,32 @@ const ELEMENT_LORE = {
 	"fire": {
 		"title": "Discipline of the Blazing Fist",
 		"desc": "Focuses on explosive momentum, high burst strikes, and burning destruction to break enemy lines.",
-		"skill": "Starter Martial Art: Combustion (Damage: 35 • MP: 25 • Range: 2)",
 		"role": "Combat Archetype: Striker (Aggressive Offense)"
 	},
 	"water": {
 		"title": "Discipline of the Flowing Stream",
 		"desc": "Focuses on fluid evasion, vital restoration, and tidal momentum that counters reckless strikes.",
-		"skill": "Starter Martial Art: Aqua Mend (Healing: 30 • MP: 20 • Range: 3)",
 		"role": "Combat Archetype: Tactician & Healer (Endurance & Flow)"
 	},
 	"earth": {
 		"title": "Discipline of the Unmovable Peak",
 		"desc": "Focuses on rock-solid stances, stone shielding, and punishing counter-blows that weather any storm.",
-		"skill": "Starter Martial Art: Stone Plating (Shielding: +20 Def • MP: 15 • Self)",
 		"role": "Combat Archetype: Defender & Anchor (Fortress Stance)"
 	},
 	"air": {
 		"title": "Discipline of the Whispering Gale",
 		"desc": "Focuses on lightning-swift footwork, elusive dodging, and sonic displacement across the arena.",
-		"skill": "Starter Martial Art: Gale Step (Mobility: +2 Speed • MP: 15 • Self)",
 		"role": "Combat Archetype: Scout & Vanguard (Speed & Evasion)"
 	}
 }
 
 func _ready():
+	var cm = _get_campaign_manager()
+	if cm:
+		for nation in cm.NATIONALITIES:
+			nationality_choice.add_item(nation)
+		var initial_index = cm.NATIONALITIES.find(cm.player_nationality)
+		nationality_choice.select(maxi(0, initial_index))
 	_wire_signals()
 	_select_element("fire")
 
@@ -121,7 +124,7 @@ func _select_element(elem: String):
 		var lore = ELEMENT_LORE[elem]
 		lbl_disc_title.text = lore["title"]
 		lbl_disc_desc.text = lore["desc"]
-		lbl_starter_skill.text = lore["skill"]
+		lbl_starter_skill.text = _starter_technique_text(elem)
 		lbl_role.text = lore["role"]
 
 	# Update button focus highlights
@@ -184,6 +187,27 @@ func _highlight_selected_element_button():
 		btn.add_theme_stylebox_override("hover", sb)
 		btn.add_theme_stylebox_override("pressed", sb)
 
+func _starter_technique_text(elem: String) -> String:
+	# Preview the same two forms that the campaign will unlock and equip.
+	var edata = _get_element_data()
+	var cm = _get_campaign_manager()
+	if not edata or not cm:
+		return ""
+	var keys = cm.DEFAULT_ELEMENT_SKILLS.get(elem, [])
+	if keys.is_empty():
+		return ""
+	var lines: Array[String] = []
+	for i in range(min(2, keys.size())):
+		var ability = edata.ABILITIES.get(keys[i], {})
+		var forms = ability.get("forms", {})
+		var form = forms.values()[0] if not forms.is_empty() else {}
+		var mp_cost = int(round(ability.get("mp_cost", 0) * form.get("mp_mult", 1.0)))
+		var label = "Support" if i == 0 else "Attack"
+		lines.append("%s: %s (%s)  ·  %d MP  ·  Range %d" % [
+			label, ability.get("name", keys[i]), form.get("name", "Base Form"), mp_cost,
+			form.get("range", ability.get("range", 1))])
+	return "\n".join(lines)
+
 func _set_preview_dir(row: int):
 	current_dir_row = row
 	if preview_sprite:
@@ -195,17 +219,10 @@ func _on_start_campaign():
 	if p_name.is_empty():
 		p_name = "Ignis"
 
-	var starter_skills = {
-		"fire": ["Combustion"],
-		"water": ["Aqua_Mend"],
-		"earth": ["Stone_Plating"],
-		"air": ["Gale_Step"]
-	}
-	var equipped = starter_skills.get(current_element, ["Combustion"])
-
 	if cm:
 		cm.init_new_campaign({
 			"player_name": p_name,
+			"player_nationality": nationality_choice.get_item_text(nationality_choice.selected),
 			"player_element": current_element,
 			"team_name": "", # Solo Street Brawler
 			"start_solo": true,
@@ -214,14 +231,6 @@ func _on_start_campaign():
 				"team_palette": current_element
 			}
 		})
-		cm.equipped_abilities = equipped.duplicate()
-		cm.unlocked_abilities = equipped.duplicate()
-		var edata = _get_element_data()
-		for sk in equipped:
-			var f_keys = edata.get_skill_form_keys(sk) if edata else []
-			var first_f = f_keys[0] if not f_keys.is_empty() else "form_1"
-			cm.unlocked_skill_forms[sk] = [first_f]
-			cm.skill_variations[sk] = first_f
 		cm.save_campaign()
 
 	get_tree().change_scene_to_file("res://scenes/CampaignHub.tscn")

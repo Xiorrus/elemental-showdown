@@ -1,4 +1,5 @@
 extends CanvasLayer
+const AbilityGeometry = preload("res://scripts/ability_geometry.gd")
 
 # ──────────────────────────────────────────────
 #  ELEMENTAL SHOWDOWN — TACTICAL METAPHOR / PERSONA HUD
@@ -359,9 +360,6 @@ var action_log:           RichTextLabel
 var ability_panels:       Array = []
 var ability_slots:        Array = []
 
-var skill_offer_panel: OrnatePanel
-var offer_buttons:     Array = []
-
 # Pause Screen
 var pause_modal_root: Control = null
 var pause_panel: OrnatePanel = null
@@ -387,7 +385,6 @@ var sub_panel:          OrnatePanel = null
 var sub_entries_vbox:   VBoxContainer = null
 
 var _log_lines:        Array = []
-var _skill_offer_keys: Array = []
 var _element_db               = null
 var _player_ref               = null
 var _cinzel_font:      Font   = null
@@ -400,7 +397,7 @@ var _target_shake_node: Node2D = null
 var _orig_shake_node_pos: Vector2 = Vector2.ZERO
 var _is_hit_stopping: bool = false
 
-const MAX_LOG_LINES = 7
+const MAX_LOG_LINES = 150
 const PAD     = 10
 const PANEL_W = 270
 const BAR_H   = 18
@@ -434,10 +431,11 @@ func _ready():
 	_build_squad_bar()
 	_build_action_log()
 	_build_ability_bar()
-	_build_skill_offer_panel()
 	_build_pause_modal()
 	_build_result_panel()
 	_build_sub_modal()
+
+	_reflow_ui()
 
 	log_action("[color=#d4a017]Match commenced.[/color] Select movement tile or right-click to act.")
 
@@ -513,15 +511,15 @@ func _reflow_ui(custom_size: Vector2 = Vector2.ZERO):
 	if enemy_panel:
 		enemy_panel.position = Vector2(SW - PANEL_W - PAD, PAD)
 	if turn_indicator_panel:
-		turn_indicator_panel.position = Vector2((SW - turn_indicator_panel.size.x) / 2.0, PAD)
+		turn_indicator_panel.position = Vector2((SW - turn_indicator_panel.size.x) / 2.0, 6)
 	if btn_pause:
 		if btn_sub and btn_sub.visible:
-			btn_sub.position = Vector2(SW / 2.0 - 105, PAD + 36)
-			btn_pause.position = Vector2(SW / 2.0 + 5, PAD + 36)
+			btn_sub.position = Vector2(SW / 2.0 - 102, 36)
+			btn_pause.position = Vector2(SW / 2.0 + 6, 36)
 		else:
-			btn_pause.position = Vector2((SW - btn_pause.size.x) / 2.0, PAD + 36)
+			btn_pause.position = Vector2((SW - btn_pause.size.x) / 2.0, 36)
 	if squad_bar:
-		squad_bar.position = Vector2((SW - squad_bar.size.x) / 2.0, PAD + 68)
+		squad_bar.position = Vector2((SW - squad_bar.size.x) / 2.0, 66)
 
 	var bar_y = SH - AB_H - PAD
 	var total = (AB_W + 8) * 5 - 8
@@ -531,8 +529,6 @@ func _reflow_ui(custom_size: Vector2 = Vector2.ZERO):
 
 	if action_log_panel:
 		action_log_panel.position = Vector2(PAD, SH - action_log_panel.size.y - AB_H - PAD * 2)
-	if skill_offer_panel:
-		skill_offer_panel.position = Vector2((SW - skill_offer_panel.size.x) / 2.0, (SH - skill_offer_panel.size.y) / 2.0)
 	if pause_panel:
 		pause_panel.position = Vector2((SW - pause_panel.size.x) / 2.0, (SH - pause_panel.size.y) / 2.0)
 	if result_panel:
@@ -720,10 +716,10 @@ func _build_enemy_panel():
 
 func _build_turn_indicator():
 	var rib_w = 500.0
-	var rib_h = 32.0
+	var rib_h = 26.0
 	turn_indicator_panel = OrnateRibbon.new()
 	turn_indicator_panel.size = Vector2(rib_w, rib_h)
-	turn_indicator_panel.position = Vector2(326, PAD)
+	turn_indicator_panel.position = Vector2(326, 6)
 	turn_indicator_panel.text = "Move Phase: Select blue tile  |  Right-Click: Attack Phase"
 	if ResourceLoader.exists("res://assets/icon_hourglass.png"):
 		turn_indicator_panel.icon_hourglass = load("res://assets/icon_hourglass.png")
@@ -732,8 +728,8 @@ func _build_turn_indicator():
 	# Direct Tactical Sub Button (Centered beneath turn ribbon)
 	btn_sub = Button.new()
 	btn_sub.text = "Sub (1)"
-	btn_sub.size = Vector2(100, 26)
-	btn_sub.position = Vector2(470, PAD + 36)
+	btn_sub.size = Vector2(96, 24)
+	btn_sub.position = Vector2(SW / 2.0 - 102, 36)
 	_style_tactical_button(btn_sub, Color(0.08, 0.12, 0.18, 0.95), Color(0.35, 0.65, 0.95, 0.75), Color(0.75, 0.90, 1.0), 10)
 	if _cinzel_font:
 		btn_sub.add_theme_font_override("font", _cinzel_font)
@@ -743,8 +739,8 @@ func _build_turn_indicator():
 	# Direct Pause Button for Mouse Interaction
 	btn_pause = Button.new()
 	btn_pause.text = "Pause"
-	btn_pause.size = Vector2(100, 26)
-	btn_pause.position = Vector2(580, PAD + 36)
+	btn_pause.size = Vector2(96, 24)
+	btn_pause.position = Vector2(SW / 2.0 + 6, 36)
 	_style_tactical_button(btn_pause, Color(0.08, 0.10, 0.16, 0.95), Color(0.85, 0.65, 0.22, 0.75), Color(0.95, 0.85, 0.35), 10)
 	if _cinzel_font:
 		btn_pause.add_theme_font_override("font", _cinzel_font)
@@ -754,8 +750,8 @@ func _build_turn_indicator():
 func _build_squad_bar():
 	squad_bar = HBoxContainer.new()
 	squad_bar.name = "SquadBar"
-	squad_bar.position = Vector2(250, 70)
-	squad_bar.size = Vector2(652, 28)
+	squad_bar.size = Vector2(652, 26)
+	squad_bar.position = Vector2((SW - 652) / 2.0, 66)
 	squad_bar.add_theme_constant_override("separation", 6)
 	squad_bar.alignment = BoxContainer.ALIGNMENT_CENTER
 	add_child(squad_bar)
@@ -814,6 +810,7 @@ func update_squad_bar():
 		var cur_hp = p.hp if "hp" in p else 100
 		var elem_str = p.element.capitalize() if "element" in p else "Fire"
 		btn.text = "%d: %s (%s) %d HP %s" % [i + 1, p_name, elem_str, cur_hp, badge]
+		btn.custom_minimum_size = Vector2(0, 24)
 		btn.add_theme_font_size_override("font_size", 9)
 		_style_tactical_button(btn, bg_col, border_col, txt_color, 9)
 
@@ -828,6 +825,7 @@ func update_squad_bar():
 	if players.size() > 1 and bm.current_state != bm.State.ENEMY_TURN and bm.current_state != bm.State.BATTLE_OVER:
 		var end_btn = Button.new()
 		end_btn.text = "End Squad Turn"
+		end_btn.custom_minimum_size = Vector2(0, 24)
 		end_btn.add_theme_font_size_override("font_size", 9)
 		_style_tactical_button(end_btn, Color(0.20, 0.08, 0.08, 0.92), Color(0.9, 0.4, 0.2, 0.8), Color(1.0, 0.8, 0.6), 9)
 		end_btn.pressed.connect(func():
@@ -835,6 +833,9 @@ func update_squad_bar():
 				bm.end_squad_turn()
 		)
 		squad_bar.add_child(end_btn)
+
+	squad_bar.position.y = 66
+	squad_bar.position.x = (SW - squad_bar.size.x) / 2.0
 
 func _build_action_log():
 	var log_w = 340.0
@@ -863,10 +864,36 @@ func _build_action_log():
 	action_log = RichTextLabel.new()
 	action_log.position = Vector2(8, 24)
 	action_log.size = Vector2(log_w - 16, log_h - 30)
-	action_log.scroll_following = true
+	action_log.scroll_following = false
+	action_log.scroll_active = true
 	action_log.bbcode_enabled = true
 	action_log.add_theme_font_size_override("normal_font_size", 10)
 	action_log.add_theme_color_override("default_color", Color(0.85, 0.88, 0.95))
+
+	# Styled tactical scrollbar with visible track and gold/slate grabber
+	var v_scroll = action_log.get_v_scroll_bar()
+	if v_scroll:
+		v_scroll.custom_minimum_size = Vector2(6, 0)
+		var tr_sb = StyleBoxFlat.new()
+		tr_sb.bg_color = Color(0.06, 0.08, 0.12, 0.5)
+		tr_sb.set_corner_radius_all(3)
+		v_scroll.add_theme_stylebox_override("scroll", tr_sb)
+
+		var gr_sb = StyleBoxFlat.new()
+		gr_sb.bg_color = Color(0.35, 0.45, 0.65, 0.80)
+		gr_sb.set_corner_radius_all(3)
+		v_scroll.add_theme_stylebox_override("grabber", gr_sb)
+
+		var gr_sb_h = StyleBoxFlat.new()
+		gr_sb_h.bg_color = Color(0.85, 0.70, 0.22, 0.95)
+		gr_sb_h.set_corner_radius_all(3)
+		v_scroll.add_theme_stylebox_override("grabber_highlight", gr_sb_h)
+
+		var gr_sb_p = StyleBoxFlat.new()
+		gr_sb_p.bg_color = Color(1.0, 0.85, 0.35, 1.0)
+		gr_sb_p.set_corner_radius_all(3)
+		v_scroll.add_theme_stylebox_override("grabber_pressed", gr_sb_p)
+
 	action_log_panel.add_child(action_log)
 
 	var is_collapsed = false
@@ -900,58 +927,32 @@ func _build_ability_bar():
 		add_child(p)
 		ability_panels.append(p)
 
+		# Upper compartment: labels
 		var badge = _label("[%s]" % key_labels[i], p, Vector2(6, 3), Vector2(24, 16), 9, true)
 		badge.modulate = Color(0.45, 0.50, 0.60)
 
 		var n_lbl = _label("---", p, Vector2(30, 3), Vector2(AB_W - 36, 16), 10, true)
 		n_lbl.modulate = Color(0.35, 0.40, 0.50)
 
-		var c_lbl = _label("MP: --", p, Vector2(6, 18), Vector2(75, 14), 9)
+		var c_lbl = _label("MP: --", p, Vector2(6, 18), Vector2(65, 14), 9)
 		c_lbl.modulate = Color(0.25, 0.30, 0.40)
 
-		var r_lbl = _label("Rng: --", p, Vector2(86, 18), Vector2(85, 14), 9)
+		var r_lbl = _label("Rng: --", p, Vector2(75, 18), Vector2(AB_W - 80, 14), 9)
 		r_lbl.modulate = Color(0.25, 0.30, 0.40)
 
-		var cycle_btn: Button = null
-		if i < 4:
-			cycle_btn = Button.new()
-			cycle_btn.text = "Form: ---"
-			cycle_btn.size = Vector2(AB_W - 8, 16)
-			cycle_btn.position = Vector2(4, 34)
-			cycle_btn.add_theme_font_size_override("font_size", 8)
-			cycle_btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-			cycle_btn.visible = false
-			var btn_sb = StyleBoxFlat.new()
-			btn_sb.bg_color = Color(0.10, 0.14, 0.22, 0.90)
-			btn_sb.border_color = Color(0.35, 0.45, 0.65, 0.70)
-			btn_sb.set_border_width_all(1)
-			btn_sb.set_corner_radius_all(3)
-			cycle_btn.add_theme_stylebox_override("normal", btn_sb)
-			var btn_sb_h = btn_sb.duplicate()
-			btn_sb_h.bg_color = Color(0.18, 0.24, 0.38, 0.95)
-			btn_sb_h.border_color = Color(1.0, 0.85, 0.35, 0.90)
-			cycle_btn.add_theme_stylebox_override("hover", btn_sb_h)
-			cycle_btn.add_theme_color_override("font_color", Color(1.0, 0.85, 0.40))
-			cycle_btn.add_theme_color_override("font_hover_color", Color(1.0, 1.0, 0.80))
-			var btn_s_idx = i
-			cycle_btn.pressed.connect(func():
-				if _player_ref and _player_ref.has_method("cycle_skill_form"):
-					_player_ref.cycle_skill_form(btn_s_idx)
-			)
+		# Subtle horizontal divider dividing upper ability section from lower form section
+		var divider = ColorRect.new()
+		divider.position = Vector2(2, 34)
+		divider.size = Vector2(AB_W - 4, 1)
+		divider.color = Color(0.22, 0.28, 0.40, 0.5)
+		p.add_child(divider)
 
-		ability_slots.append({
-			"panel": p,
-			"name":  n_lbl,
-			"cost":  c_lbl,
-			"range": r_lbl,
-			"form":  null,
-			"cycle_btn": cycle_btn,
-			"badge": badge
-		})
-
+		# Upper compartment button (Main ability execution)
 		var slot_btn = Button.new()
 		slot_btn.flat = true
+		slot_btn.position = Vector2(0, 0)
 		slot_btn.size = Vector2(AB_W, 34)
+		slot_btn.focus_mode = Control.FOCUS_NONE
 		slot_btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 		var s_idx = i
 		slot_btn.pressed.connect(func():
@@ -968,33 +969,56 @@ func _build_ability_bar():
 					_player_ref.cycle_skill_form(s_idx)
 		)
 		p.add_child(slot_btn)
-		if cycle_btn:
+
+		# Lower compartment button (Integrated skill form button)
+		var cycle_btn: Button = null
+		if i < 4:
+			cycle_btn = Button.new()
+			cycle_btn.text = "⟳ Form: ---"
+			cycle_btn.size = Vector2(AB_W - 2, 18)
+			cycle_btn.position = Vector2(1, 35)
+			cycle_btn.add_theme_font_size_override("font_size", 8)
+			cycle_btn.focus_mode = Control.FOCUS_NONE
+			cycle_btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+			cycle_btn.visible = false
+
+			var btn_sb = StyleBoxFlat.new()
+			btn_sb.bg_color = Color(0.06, 0.08, 0.12, 0.70)
+			btn_sb.corner_radius_bottom_left = 4
+			btn_sb.corner_radius_bottom_right = 4
+			cycle_btn.add_theme_stylebox_override("normal", btn_sb)
+
+			var btn_sb_h = StyleBoxFlat.new()
+			btn_sb_h.bg_color = Color(0.14, 0.20, 0.32, 0.95)
+			btn_sb_h.border_width_top = 1
+			btn_sb_h.border_color = Color(0.85, 0.70, 0.22, 0.85)
+			btn_sb_h.corner_radius_bottom_left = 4
+			btn_sb_h.corner_radius_bottom_right = 4
+			cycle_btn.add_theme_stylebox_override("hover", btn_sb_h)
+
+			var btn_sb_p = btn_sb.duplicate()
+			btn_sb_p.bg_color = Color(0.10, 0.15, 0.24, 0.98)
+			cycle_btn.add_theme_stylebox_override("pressed", btn_sb_p)
+
+			cycle_btn.add_theme_color_override("font_color", Color(1.0, 0.85, 0.40))
+			cycle_btn.add_theme_color_override("font_hover_color", Color(1.0, 1.0, 0.80))
+			var btn_s_idx = i
+			cycle_btn.pressed.connect(func():
+				if _player_ref and _player_ref.has_method("cycle_skill_form"):
+					_player_ref.cycle_skill_form(btn_s_idx)
+			)
 			p.add_child(cycle_btn)
 
-func _build_skill_offer_panel():
-	var panel_w = 520.0
-	var panel_h = 240.0
-	skill_offer_panel = OrnatePanel.new()
-	skill_offer_panel.size = Vector2(panel_w, panel_h)
-	skill_offer_panel.position = Vector2(316, (SH - panel_h) / 2.0)
-	skill_offer_panel.bracket_color = Color(0.95, 0.72, 0.22, 1.0) # Gold brackets
-	skill_offer_panel.visible = false
-	add_child(skill_offer_panel)
-
-	var title = _label("Choose a New Tactical Ability", skill_offer_panel, Vector2(20, 12), Vector2(panel_w - 40, 24), 13, true)
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.modulate = Color(1.0, 0.85, 0.3)
-
-	for i in range(3):
-		var btn = Button.new()
-		btn.position = Vector2(20, 42 + i * 62)
-		btn.size = Vector2(panel_w - 40, 54)
-		btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		_style_tactical_button(btn, Color(0.08, 0.10, 0.16, 0.95), Color(0.85, 0.65, 0.22, 0.6), Color(0.95, 0.98, 1.0), 10)
-		btn.connect("pressed", _on_skill_offer_chosen.bind(i))
-		skill_offer_panel.add_child(btn)
-		offer_buttons.append(btn)
-
+		ability_slots.append({
+			"panel": p,
+			"name":  n_lbl,
+			"cost":  c_lbl,
+			"range": r_lbl,
+			"form":  null,
+			"cycle_btn": cycle_btn,
+			"badge": badge,
+			"divider": divider
+		})
 
 # ══════════════════════════════════════════════
 #  PAUSE MODAL (Roster & Scouting Codex)
@@ -1566,7 +1590,10 @@ func show_battle_result(victory: bool, xp_gained: int = 60, turns: int = 0):
 
 	if result_stats_lbl:
 		var turn_str = "Turns: %d" % turns if turns > 0 else "Match Completed"
-		result_stats_lbl.text = "%s  •  XP Rewarded: +%d XP" % [turn_str, xp_gained]
+		if cm and cm.has_active_campaign:
+			result_stats_lbl.text = "%s  •  XP Rewarded: +%d XP" % [turn_str, xp_gained]
+		else:
+			result_stats_lbl.text = "%s  •  Exhibition Match" % turn_str
 
 	if result_energy_lbl:
 		if cm and cm.has_active_campaign:
@@ -1926,8 +1953,8 @@ func update_xp(level: int, xp: int, xp_to_next: int):
 	if level_label:
 		level_label.text = "Lv. %d" % level
 	if player_xp_bar:
-		player_xp_bar.tween_to(xp)
 		player_xp_bar.max_value = max(1, xp_to_next)
+		player_xp_bar.tween_to(xp)
 		player_xp_bar.text = "XP: %d / %d" % [xp, xp_to_next]
 
 func update_moves(moves: int):
@@ -1951,19 +1978,24 @@ func update_abilities(equipped: Array, element_db, player_ref_opt = null):
 
 				var form_name = var_info.get("name", ab["name"])
 				var eff_r = var_info["range_override"] if var_info.get("range_override", -1) > 0 else ab["range"]
+				var band: String = var_info.get("range_band", AbilityGeometry.preferred_band(str(form_name), int(eff_r)))
+				var form_effect: String = var_info.get("effect", ab.get("effect", ""))
+				var is_attack: bool = float(ab.get("damage", 0)) * float(var_info.get("dmg_mult", 1.0)) > 0.0 and not form_effect in ["dodge_buff", "evasion", "defense_buff", "armor_buff", "guard", "heal", "cleanse", "anchor"]
 				var eff_mp = int(round(ab["mp_cost"] * var_info.get("mp_mult", 1.0)))
 
 				slot["name"].text = ab["name"]
 				slot["name"].modulate = Color(1.0, 0.95, 0.85)
 				slot["cost"].text = "MP: %d" % eff_mp
 				slot["cost"].modulate = Color(0.35, 0.80, 1.0)
-				slot["range"].text = "Rng: %d" % eff_r
+				slot["range"].text = ("%d %s +25%%" % [eff_r, band.capitalize()]) if is_attack else ("Rng: %d" % eff_r)
+				slot["range"].tooltip_text = ("%s range: +25%% damage at %s" % [band.capitalize(), AbilityGeometry.ideal_range_label(band, int(eff_r))]) if is_attack else "Support form"
 				slot["range"].modulate = Color(0.40, 0.95, 0.65)
 				if f_lbl:
-					f_lbl.text = "Form: %s" % form_name
+					f_lbl.text = "%s | %s +25%% (%s)" % [form_name, band.capitalize(), AbilityGeometry.ideal_range_label(band, int(eff_r))]
 					f_lbl.modulate = Color(1.0, 0.82, 0.35)
 				if c_btn:
 					c_btn.text = "⟳ Form: %s" % form_name
+					c_btn.tooltip_text = ("%s: +25%% damage at %s" % [band.capitalize(), AbilityGeometry.ideal_range_label(band, int(eff_r))]) if is_attack else "Support form"
 					c_btn.visible = true
 				slot["panel"].bracket_color = Color(0.45, 0.60, 0.85, 0.85)
 				if badge: badge.modulate = Color(1.0, 0.85, 0.3)
@@ -2020,6 +2052,10 @@ func update_artifact(artifact: Dictionary, charges: int):
 func highlight_ability_slot(idx: int):
 	for i in range(ability_panels.size()):
 		ability_panels[i].is_highlighted = (i == idx)
+		if i < ability_slots.size():
+			var div = ability_slots[i].get("divider")
+			if div and is_instance_valid(div):
+				div.color = Color(0.85, 0.70, 0.22, 0.75) if (i == idx) else Color(0.22, 0.28, 0.40, 0.5)
 
 func update_turn_indicator(label_text: String, is_player: bool):
 	if turn_indicator_panel:
@@ -2031,31 +2067,15 @@ func log_action(message: String):
 	if _log_lines.size() > MAX_LOG_LINES:
 		_log_lines.pop_front()
 	if action_log:
+		var v_scroll = action_log.get_v_scroll_bar()
+		var was_near_bottom = true
+		if v_scroll and v_scroll.max_value > 0:
+			was_near_bottom = (v_scroll.value >= v_scroll.max_value - v_scroll.page - 12.0)
 		action_log.clear()
 		for line in _log_lines:
 			action_log.append_text(line + "\n")
-
-func show_skill_offer(offers: Array, element_db):
-	if skill_offer_panel == null:
-		return
-	_skill_offer_keys = offers
-	_element_db = element_db
-	for i in range(offer_buttons.size()):
-		if i < offers.size() and element_db.ABILITIES.has(offers[i]):
-			var ab = element_db.ABILITIES[offers[i]]
-			offer_buttons[i].text = "%s  [MP:%d  Rng:%d]  — %s" % [ab["name"], ab["mp_cost"], ab["range"], ab.get("desc", "")]
-			offer_buttons[i].visible = true
-		else:
-			offer_buttons[i].visible = false
-	skill_offer_panel.visible = true
-
-func _on_skill_offer_chosen(idx: int):
-	if idx < _skill_offer_keys.size():
-		var key = _skill_offer_keys[idx]
-		if _player_ref and _player_ref.has_method("accept_skill_offer"):
-			_player_ref.accept_skill_offer(key)
-	skill_offer_panel.visible = false
-	_skill_offer_keys = []
+		if was_near_bottom and v_scroll:
+			v_scroll.set_deferred("value", v_scroll.max_value)
 
 func spawn_damage_popup(world_pos: Vector2, amount: Variant, popup_type: String = "damage", skill_elem: String = ""):
 	var popup = DamagePopup.new()

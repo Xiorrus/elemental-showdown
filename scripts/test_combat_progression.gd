@@ -158,10 +158,11 @@ func _run():
 	# SUITE 7: TEAMMATE AUTONOMY VS CAPTAIN AUTHORITY
 	# -------------------------------------------------------------------------
 	print("\n--- SUITE 7: Teammate Autonomy vs Captain Authority ---")
-	var ally_key = "kaelen"
+	cm.init_new_campaign({"player_name": "Ignis", "player_element": "fire", "team_name": "Phoenix Strikers"})
+	var ally_key = "Gaius"
 	# Captain designates pre-game loadout
 	var set_skills = cm.set_teammate_active_skills(ally_key, ["Stone_Plating", "Metal", "Quicksand", "Combustion"])
-	_assert(set_skills == true, "T7.1 Captain successfully sets teammate active skill loadout before match")
+	_assert(set_skills and cm.get_ally(ally_key)["equipped_skills"] == ["Stone_Plating", "Metal", "Quicksand", "Combustion"], "T7.1 Captain successfully sets the named teammate's skill loadout before match")
 
 	# Captain suggests training focus
 	var accepted_count = 0
