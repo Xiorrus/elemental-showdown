@@ -223,6 +223,19 @@ theme_override_styles/hover = SubResource("StyleBoxFlat_btn_hover")
 theme_override_styles/pressed = SubResource("StyleBoxFlat_btn_hover")
 text = "Continue Campaign"
 
+[node name="BtnSelectCampaign" type="Button" parent="MainLayout/NavDeck"]
+custom_minimum_size = Vector2(340, 42)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.85, 0.88, 0.95, 1)
+theme_override_colors/font_hover_color = Color(1, 0.95, 0.75, 1)
+theme_override_colors/font_disabled_color = Color(0.40, 0.45, 0.52, 0.6)
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 13
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_btn_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_btn_hover")
+text = "Campaign Archives"
+
 [node name="BtnSettings" type="Button" parent="MainLayout/NavDeck"]
 custom_minimum_size = Vector2(340, 40)
 layout_mode = 2
@@ -541,3 +554,124 @@ theme_override_font_sizes/font_size = 12
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_new_normal")
 theme_override_styles/hover = SubResource("StyleBoxFlat_btn_new_hover")
 text = "Apply & Close"
+
+[node name="CampaignsModal" type="Control" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="DimBackdrop" type="ColorRect" parent="CampaignsModal"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.02, 0.03, 0.05, 0.85)
+
+[node name="DialogPanel" type="PanelContainer" parent="CampaignsModal"]
+custom_minimum_size = Vector2(760, 520)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -380.0
+offset_top = -260.0
+offset_right = 380.0
+offset_bottom = 260.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_modal_panel")
+
+[node name="Margin" type="MarginContainer" parent="CampaignsModal/DialogPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 28
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 28
+theme_override_constants/margin_bottom = 20
+
+[node name="VBox" type="VBoxContainer" parent="CampaignsModal/DialogPanel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="HeaderBox" type="VBoxContainer" parent="CampaignsModal/DialogPanel/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Title" type="Label" parent="CampaignsModal/DialogPanel/Margin/VBox/HeaderBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.92, 0.78, 0.35, 1)
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 18
+text = "Campaign Archives"
+horizontal_alignment = 1
+
+[node name="Subtitle" type="Label" parent="CampaignsModal/DialogPanel/Margin/VBox/HeaderBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.65, 0.72, 0.85, 0.85)
+theme_override_font_sizes/font_size = 11
+text = "Select an existing career archive, embark on a new legacy, or manage saved slots"
+horizontal_alignment = 1
+
+[node name="Divider" type="Control" parent="CampaignsModal/DialogPanel/Margin/VBox/HeaderBox"]
+custom_minimum_size = Vector2(300, 4)
+layout_mode = 2
+size_flags_horizontal = 4
+script = ExtResource("4_divider")
+
+[node name="ScrollContainer" type="ScrollContainer" parent="CampaignsModal/DialogPanel/Margin/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="CardsContainer" type="VBoxContainer" parent="CampaignsModal/DialogPanel/Margin/VBox/ScrollContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 10
+
+[node name="EmptyLabel" type="Label" parent="CampaignsModal/DialogPanel/Margin/VBox/ScrollContainer/CardsContainer"]
+visible = false
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_colors/font_color = Color(0.55, 0.62, 0.75, 1)
+theme_override_font_sizes/font_size = 13
+text = "No saved campaign archives found.
+Click '+ New Campaign' below to forge your elemental journey!"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="BottomRow" type="HBoxContainer" parent="CampaignsModal/DialogPanel/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 16
+alignment = 2
+
+[node name="BtnModalNew" type="Button" parent="CampaignsModal/DialogPanel/Margin/VBox/BottomRow"]
+custom_minimum_size = Vector2(170, 36)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.08, 0.07, 0.05, 1)
+theme_override_colors/font_hover_color = Color(0.08, 0.07, 0.05, 1)
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 12
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_new_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_btn_new_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_btn_new_hover")
+text = "+ New Campaign"
+
+[node name="BtnModalClose" type="Button" parent="CampaignsModal/DialogPanel/Margin/VBox/BottomRow"]
+custom_minimum_size = Vector2(140, 36)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.85, 0.90, 0.96, 1)
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 12
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_btn_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_btn_hover")
+text = "Back to Menu"
+

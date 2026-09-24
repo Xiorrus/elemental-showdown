@@ -4,6 +4,11 @@
 extends Node
 
 const SAVE_PATH = "user://campaign_save.json"
+const SAVES_DIR = "user://saves"
+
+var current_save_path: String = SAVE_PATH
+var current_campaign_id: String = ""
+
 const MAX_ENERGY = 100
 const FATIGUE_THRESHOLD = 30
 const MAX_ROSTER_SIZE = 10
@@ -1109,11 +1114,217 @@ func _check_level_up():
 		unspent_skill_points += 1
 		print("[CampaignManager] LEVEL UP! Now Level %d! (+3 Stat Points, +1 Skill Point)" % player_level)
 
-func has_saved_campaign() -> bool:
-	return FileAccess.file_exists(SAVE_PATH)
+func _ensure_saves_dir() -> void:
+	if not DirAccess.dir_exists_absolute(SAVES_DIR):
+		DirAccess.make_dir_recursive_absolute(SAVES_DIR)
 
-func save_campaign() -> bool:
+func create_new_campaign_slot(char_name: String = "") -> String:
+	_ensure_saves_dir()
+	var base_name = char_name.strip_edges()
+	if base_name.is_empty():
+		base_name = "Brawler"
+
+	var safe_name = ""
+	for i in range(base_name.length()):
+		var ch = base_name[i]
+		if (ch >= 'a' and ch <= 'z') or (ch >= 'A' and ch <= 'Z') or (ch >= '0' and ch <= '9'):
+			safe_name += ch.to_lower()
+		elif ch == ' ' or ch == '_':
+			safe_name += "_"
+	if safe_name.is_empty():
+		safe_name = "hero"
+
+	var timestamp = int(Time.get_unix_time_from_system())
+	var camp_id = "campaign_%d_%s" % [timestamp, safe_name]
+	var slot_path = "%s/%s.json" % [SAVES_DIR, camp_id]
+	var counter = 1
+	while FileAccess.file_exists(slot_path):
+		camp_id = "campaign_%d_%s_%d" % [timestamp, safe_name, counter]
+		slot_path = "%s/%s.json" % [SAVES_DIR, camp_id]
+		counter += 1
+
+	current_save_path = slot_path
+	current_campaign_id = camp_id
+	return slot_path
+
+func _read_campaign_header(path: String) -> Dictionary:
+	if not FileAccess.file_exists(path):
+		return {}
+	var file = FileAccess.open(path, FileAccess.READ)
+	if not file:
+		return {}
+	var text = file.get_as_text()
+	file.close()
+	var json = JSON.new()
+	if json.parse(text) != OK:
+		return {}
+	var data = json.get_data()
+	if not (data is Dictionary) or not _is_save_data_valid(data):
+		return {}
+
+	var mod_time = FileAccess.get_modified_time(path)
+	var mod_dict = Time.get_datetime_dict_from_unix_time(mod_time)
+	var time_str = "%04d-%02d-%02d %02d:%02d" % [
+		mod_dict.get("year", 2026),
+		mod_dict.get("month", 1),
+		mod_dict.get("day", 1),
+		mod_dict.get("hour", 0),
+		mod_dict.get("minute", 0)
+	]
+
+	var p_name = data.get("player_name", "Brawler")
+	var p_elem = str(data.get("player_element", "fire")).to_lower()
+	if p_elem == "wind": p_elem = "air"
+	var p_level = int(data.get("player_level", 1))
+	var c_team = data.get("team_name", "Solo")
+	var c_tier = int(data.get("league_tier", 1))
+	var c_day = int(data.get("campaign_day", 1))
+	var c_season = int(data.get("season_number", 1))
+	var c_week = int(data.get("season_week", 0))
+	var c_wins = int(data.get("total_wins", 0))
+	var c_losses = int(data.get("total_losses", 0))
+	var c_gold = int(data.get("gold", 0))
+	var c_shards = int(data.get("shards", 0))
+	var c_id = data.get("campaign_id", path.get_file().get_basename())
+
+	var p_arch = "Striker"
+	var allies_arr = data.get("allies", [])
+	for a in allies_arr:
+		if a is Dictionary and a.get("name") == p_name:
+			p_arch = a.get("archetype", "Striker")
+			break
+
+	return {
+		"path": path,
+		"campaign_id": c_id,
+		"player_name": p_name,
+		"player_element": p_elem,
+		"player_level": p_level,
+		"archetype": p_arch,
+		"team_name": c_team,
+		"league_tier": c_tier,
+		"campaign_day": c_day,
+		"season_number": c_season,
+		"season_week": c_week,
+		"total_wins": c_wins,
+		"total_losses": c_losses,
+		"gold": c_gold,
+		"shards": c_shards,
+		"allies_count": allies_arr.size(),
+		"modified_time": mod_time,
+		"modified_str": time_str,
+		"is_legacy": (path == SAVE_PATH)
+	}
+
+func get_saved_campaigns() -> Array[Dictionary]:
+	var list: Array[Dictionary] = []
+	var seen_paths: Dictionary = {}
+
+	# 1. Scan user://saves/ directory
+	_ensure_saves_dir()
+	var dir = DirAccess.open(SAVES_DIR)
+	if dir:
+		dir.list_dir_begin()
+		var file_name = dir.get_next()
+		while file_name != "":
+			if not dir.current_is_dir() and file_name.ends_with(".json") and not file_name.ends_with(".tmp"):
+				var full_path = SAVES_DIR + "/" + file_name
+				var header = _read_campaign_header(full_path)
+				if not header.is_empty():
+					list.append(header)
+					seen_paths[full_path] = true
+			file_name = dir.get_next()
+		dir.list_dir_end()
+
+	# 2. Check legacy SAVE_PATH
+	if FileAccess.file_exists(SAVE_PATH) and not seen_paths.has(SAVE_PATH):
+		var legacy_header = _read_campaign_header(SAVE_PATH)
+		if not legacy_header.is_empty():
+			list.append(legacy_header)
+			seen_paths[SAVE_PATH] = true
+
+	# Sort descending by modified_time (most recent first)
+	list.sort_custom(func(a, b): return a.get("modified_time", 0) > b.get("modified_time", 0))
+	return list
+
+func get_latest_save_path() -> String:
+	var saves = get_saved_campaigns()
+	if not saves.is_empty():
+		return saves[0]["path"]
+	if FileAccess.file_exists(SAVE_PATH):
+		return SAVE_PATH
+	return ""
+
+func has_saved_campaign(check_path: String = "") -> bool:
+	if not check_path.is_empty():
+		return FileAccess.file_exists(check_path)
+	if not current_save_path.is_empty() and FileAccess.file_exists(current_save_path):
+		return true
+	if FileAccess.file_exists(SAVE_PATH):
+		return true
+	return not get_saved_campaigns().is_empty()
+
+func delete_saved_campaign(file_path: String) -> bool:
+	if file_path.is_empty() or not FileAccess.file_exists(file_path):
+		return false
+	var err = DirAccess.remove_absolute(file_path)
+	if err != OK:
+		printerr("[CampaignManager] Failed to remove save file at: ", file_path)
+		return false
+	if FileAccess.file_exists(file_path + ".tmp"):
+		DirAccess.remove_absolute(file_path + ".tmp")
+
+	if current_save_path == file_path:
+		var remaining = get_saved_campaigns()
+		if not remaining.is_empty():
+			current_save_path = remaining[0]["path"]
+			current_campaign_id = remaining[0]["campaign_id"]
+		else:
+			current_save_path = SAVE_PATH
+			current_campaign_id = ""
+			has_active_campaign = false
+	print("[CampaignManager] Successfully deleted save slot: ", file_path)
+	return true
+
+func duplicate_saved_campaign(source_path: String, new_player_name: String = "") -> String:
+	if not FileAccess.file_exists(source_path):
+		return ""
+	var file = FileAccess.open(source_path, FileAccess.READ)
+	if not file:
+		return ""
+	var json_str = file.get_as_text()
+	file.close()
+	var json = JSON.new()
+	if json.parse(json_str) != OK or not (json.data is Dictionary):
+		return ""
+	var data: Dictionary = json.data.duplicate(true)
+	var p_name = new_player_name.strip_edges() if not new_player_name.strip_edges().is_empty() else (str(data.get("player_name", "Copy")) + " Copy")
+	data["player_name"] = p_name
+
+	var new_slot = create_new_campaign_slot(p_name)
+	data["campaign_id"] = current_campaign_id
+	var out_file = FileAccess.open(new_slot, FileAccess.WRITE)
+	if not out_file:
+		return ""
+	out_file.store_string(JSON.stringify(data, "\t"))
+	out_file.close()
+	return new_slot
+
+func save_campaign(target_path: String = "") -> bool:
+	var dest_path = target_path if not target_path.is_empty() else current_save_path
+	if dest_path.is_empty():
+		dest_path = SAVE_PATH
+
+	var dir_path = dest_path.get_base_dir()
+	if not dir_path.is_empty() and not DirAccess.dir_exists_absolute(dir_path):
+		DirAccess.make_dir_recursive_absolute(dir_path)
+
+	var save_camp_id = current_campaign_id
+	if save_camp_id.is_empty():
+		save_camp_id = dest_path.get_file().get_basename()
+
 	var data = {
+		"campaign_id": save_camp_id,
 		"has_active_campaign": has_active_campaign,
 		"player_name": player_name,
 		"player_nationality": player_nationality,
@@ -1185,10 +1396,10 @@ func save_campaign() -> bool:
 	var json_string = JSON.stringify(data, "\t")
 	# Replace only after the complete JSON has been flushed, preserving the last
 	# good save if writing the new one fails or the process stops mid-write.
-	var temporary_path = SAVE_PATH + ".tmp"
+	var temporary_path = dest_path + ".tmp"
 	var file = FileAccess.open(temporary_path, FileAccess.WRITE)
 	if file == null:
-		printerr("[CampaignManager] Failed to save campaign to ", SAVE_PATH)
+		printerr("[CampaignManager] Failed to save campaign to ", dest_path)
 		return false
 	file.store_string(json_string)
 	file.flush()
@@ -1197,11 +1408,17 @@ func save_campaign() -> bool:
 	if write_error != OK:
 		printerr("[CampaignManager] Failed to finish writing campaign: ", write_error)
 		return false
-	var replace_error = DirAccess.rename_absolute(temporary_path, SAVE_PATH)
+	var replace_error = DirAccess.rename_absolute(temporary_path, dest_path)
 	if replace_error != OK:
-		printerr("[CampaignManager] Failed to replace campaign save: ", replace_error)
-		return false
-	print("[CampaignManager] Saved campaign successfully to ", SAVE_PATH)
+		if FileAccess.file_exists(dest_path):
+			DirAccess.remove_absolute(dest_path)
+			replace_error = DirAccess.rename_absolute(temporary_path, dest_path)
+		if replace_error != OK:
+			printerr("[CampaignManager] Failed to replace campaign save: ", replace_error)
+			return false
+	current_save_path = dest_path
+	current_campaign_id = save_camp_id
+	print("[CampaignManager] Saved campaign successfully to ", dest_path)
 	return true
 
 func parse_vector2i(val) -> Vector2i:
@@ -1292,7 +1509,7 @@ func _is_save_data_valid(data: Dictionary) -> bool:
 	if not DEFAULT_ELEMENT_SKILLS.has(saved_element):
 		return false
 	var schema = {
-		TYPE_STRING: ["player_name", "player_element", "player_nationality", "recruitment_offer_club", "active_match_format", "designated_sub", "current_league", "team_name", "career_team", "season_phase"],
+		TYPE_STRING: ["player_name", "player_element", "player_nationality", "recruitment_offer_club", "active_match_format", "designated_sub", "current_league", "team_name", "career_team", "season_phase", "campaign_id"],
 		TYPE_BOOL: ["has_active_campaign", "is_fatigued", "bench_risk", "has_team", "recruitment_offer_pending", "pending_element_choice", "primordial_choice_pending", "world_cup_reward_pending"],
 		TYPE_FLOAT: ["player_level", "player_xp", "player_xp_to_next", "player_speed", "player_agility", "player_dexterity", "player_stamina", "player_mana", "player_potency", "player_defense", "unspent_stat_points", "unspent_skill_points", "energy", "league_round", "total_wins", "total_losses", "league_tier", "street_wins", "gold", "shards", "campaign_day", "career_start_year", "win_streak", "season_number", "season_week", "season_start_day", "national_cup_titles", "continental_cup_titles", "national_world_cup_titles", "club_world_cup_titles", "primordial_skill_permits"],
 		TYPE_DICTIONARY: ["starting_formation", "appearance", "scouting_intel", "skill_variations", "unlocked_skill_forms", "season_state", "championship_state", "training_progress", "training_gains"],
@@ -1379,12 +1596,21 @@ func _is_save_data_valid(data: Dictionary) -> bool:
 			return false
 	return true
 
-func load_campaign() -> bool:
-	if not has_saved_campaign():
-		printerr("[CampaignManager] No save file found at ", SAVE_PATH)
+func load_campaign(source_path: String = "") -> bool:
+	var load_path = source_path
+	if load_path.is_empty():
+		if FileAccess.file_exists(current_save_path):
+			load_path = current_save_path
+		elif FileAccess.file_exists(SAVE_PATH):
+			load_path = SAVE_PATH
+		else:
+			load_path = get_latest_save_path()
+
+	if load_path.is_empty() or not FileAccess.file_exists(load_path):
+		printerr("[CampaignManager] No save file found at ", load_path if not load_path.is_empty() else current_save_path)
 		return false
 
-	var file = FileAccess.open(SAVE_PATH, FileAccess.READ)
+	var file = FileAccess.open(load_path, FileAccess.READ)
 	if file == null:
 		return false
 	var text = file.get_as_text()
@@ -1401,6 +1627,8 @@ func load_campaign() -> bool:
 		printerr("[CampaignManager] Save contains invalid campaign data; current campaign preserved.")
 		return false
 
+	current_save_path = load_path
+	current_campaign_id = data.get("campaign_id", load_path.get_file().get_basename())
 	has_active_campaign = data.get("has_active_campaign", true)
 	player_name = data.get("player_name", "Ignis")
 	player_nationality = data.get("player_nationality", NATIONALITIES[0])

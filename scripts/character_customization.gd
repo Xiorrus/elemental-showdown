@@ -220,6 +220,7 @@ func _on_start_campaign():
 		p_name = "Ignis"
 
 	if cm:
+		cm.create_new_campaign_slot(p_name)
 		cm.init_new_campaign({
 			"player_name": p_name,
 			"player_nationality": nationality_choice.get_item_text(nationality_choice.selected),

@@ -4076,7 +4076,8 @@ func _refresh_team_tab():
 func _on_save_pressed():
 	if cm and cm.save_campaign():
 		if save_feedback:
-			save_feedback.text = "Campaign saved successfully!"
+			var slot_name = cm.player_name if not cm.player_name.is_empty() else "Campaign"
+			save_feedback.text = "%s saved successfully!" % slot_name
 			save_feedback.modulate = Color(0.4, 1.0, 0.4)
 	else:
 		if save_feedback:
